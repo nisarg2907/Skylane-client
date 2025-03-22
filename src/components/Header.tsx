@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../stores/AuthStore'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Plane } from 'lucide-react'
+
 
 export const Header = () => {
   const { user, signOut, initializeAuth } = useAuthStore()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-
+  const navigate = useNavigate()
   useEffect(() => {
     if (!user) {
       initializeAuth()
@@ -54,6 +55,12 @@ export const Header = () => {
                         className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                       >
                         Sign out
+                      </button>
+                      <button
+                        onClick={() => navigate('/user-bookings')}
+                        className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                      >
+                       My Bookings
                       </button>
                     </div>
                   </>
