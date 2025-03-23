@@ -7,10 +7,12 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
 });
 
+// Request interceptor that adds the latest access token
 api.interceptors.request.use(
-  (config) => {
-    const { accessToken } = useAuthStore.getState();
-
+  async (config) => {
+    // Use the getAccessToken method which automatically refreshes if needed
+    const accessToken = await useAuthStore.getState().getAccessToken();
+    
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -22,6 +24,7 @@ api.interceptors.request.use(
   }
 );
 
+// Response interceptor that handles auth errors
 api.interceptors.response.use(
   (response) => {
     return response;
@@ -29,26 +32,29 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // If we get a 401 and we haven't tried to refresh yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const { refreshToken } = useAuthStore.getState();
-
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
+        // Attempt to refresh the token
+        const refreshed = await useAuthStore.getState().refreshSession();
+        
+        // If refresh was successful
+        if (refreshed) {
+          // Get the new token
+          const accessToken = useAuthStore.getState().accessToken;
+          
+          // Update the request with the new token
+          if (accessToken) {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return api(originalRequest);
+          }
         }
-
-        const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {
-          refreshToken,
-        });
-
-        const newAccessToken = data.accessToken;
-
-        useAuthStore.setState({ accessToken: newAccessToken });
-
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
+        
+        // If we couldn't refresh, sign out
+        useAuthStore.getState().signOut();
+        return Promise.reject(error);
       } catch (refreshError) {
         console.error('Failed to refresh token:', refreshError);
         useAuthStore.getState().signOut();

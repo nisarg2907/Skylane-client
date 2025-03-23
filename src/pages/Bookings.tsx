@@ -1,59 +1,30 @@
 import { BookingCard } from '../components/BookingCard';
-import { useBookingStore, type Booking } from "../stores/Bookingstore"
+import { type Booking } from "../stores/Bookingstore";
 import { Inbox } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '../components/Header';
 import toast from 'react-hot-toast';
+import api from '../lib/utils';
 
 export function BookingsPage() {
-  const { bookings, cancelBooking } = useBookingStore();
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'cancelled'>('all');
 
-  const dummyBookings: Booking[] = [
-    {
-      id: '1',
-      flightNumber: 'AA123',
-      from: 'New York',
-      to: 'Los Angeles',
-      departureDate: '2023-10-01',
-      returnDate: '2023-10-10',
-      passengers: { adult: 1, child: 0, infant: 0 },
-      cabinClass: 'economy',
-      status: 'confirmed',
-      price: 300,
-      bookingDate: '2023-09-01',
-    },
-    {
-      id: '2',
-      flightNumber: 'BA456',
-      from: 'Chicago',
-      to: 'Miami',
-      departureDate: '2023-09-15',
-      returnDate: '2023-09-20',
-      passengers: { adult: 2, child: 1, infant: 0 },
-      cabinClass: 'business',
-      status: 'cancelled',
-      price: 1200,
-      bookingDate: '2023-08-15',
-    },
-    {
-      id: '3',
-      flightNumber: 'UA789',
-      from: 'San Francisco',
-      to: 'Seattle',
-      departureDate: '2023-08-20',
-      returnDate: '2023-08-25',
-      passengers: { adult: 1, child: 0, infant: 1 },
-      cabinClass: 'first',
-      status: 'confirmed',
-      price: 1500,
-      bookingDate: '2023-07-20',
-    },
-  ];
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        const response = await api.get('/bookings');
+        setBookings(response.data);
+      } catch (error) {
+        console.error('Failed to fetch bookings:', error);
+        toast.error('Failed to fetch bookings');
+      }
+    };
 
-  const allBookings = [...dummyBookings, ...bookings];
+    fetchBookings();
+  }, []);
 
-  const filteredBookings = allBookings.filter((booking) => {
+  const filteredBookings = bookings.filter((booking) => {
     if (selectedFilter === 'active') return booking.status === 'confirmed';
     if (selectedFilter === 'cancelled') return booking.status === 'cancelled';
     return true;
@@ -61,16 +32,22 @@ export function BookingsPage() {
 
   const handleCancel = (id: string) => {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
-      cancelBooking(id);
-      toast.success('Booking cancelled successfully');
+      // Assuming cancelBooking is an API call
+      api.delete(`/bookings/${id}`)
+        .then(() => {
+          setBookings((prevBookings) => prevBookings.filter((booking) => booking.id !== id));
+          toast.success('Booking cancelled successfully');
+        })
+        .catch((error) => {
+          console.error('Failed to cancel booking:', error);
+          toast.error('Failed to cancel booking');
+        });
     }
   };
 
- 
-
   const handleEmailTicket = async (booking: Booking) => {
     // TODO: Implement email functionality
-    console.log("booking",booking)
+    console.log("booking", booking)
     toast.success('Ticket sent to your email!');
   };
 
@@ -133,7 +110,6 @@ export function BookingsPage() {
                 key={booking.id}
                 booking={booking}
                 onCancel={handleCancel}
-
                 onEmailTicket={handleEmailTicket}
               />
             ))
