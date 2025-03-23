@@ -5,14 +5,6 @@ import { format } from 'date-fns';
 export function RecentSearches() {
   const { recentSearches } = useFlightStore();
 
-  const dummySearches = [
-    { from: 'New York', to: 'Los Angeles', date: '2023-10-01' },
-    { from: 'Chicago', to: 'Miami', date: '2023-09-15' },
-    { from: 'San Francisco', to: 'Seattle', date: '2023-08-20' },
-  ];
-
-  const searchesToDisplay = recentSearches.length > 0 ? recentSearches : dummySearches;
-
   return (
     <div className="mt-8">
       <div className="flex items-center gap-2 mb-4">
@@ -20,7 +12,7 @@ export function RecentSearches() {
         <h3 className="text-lg font-semibold text-gray-900">Recent Searches</h3>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {searchesToDisplay.map((search, index) => (
+        {recentSearches.map((search, index) => (
           <div
             key={index}
             className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow"

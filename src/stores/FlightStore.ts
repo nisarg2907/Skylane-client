@@ -18,7 +18,7 @@ export interface FlightSearchState {
     child: number;
     infant: number;
   };
-  cabinClass: 'economy' | 'premium' | 'business' | 'first';
+  cabinClass: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
   tripType: 'oneWay' | 'roundTrip';
   recentSearches: Array<{
     from: string;
@@ -30,7 +30,7 @@ export interface FlightSearchState {
   setDepartureDate: (date: string) => void;
   setReturnDate: (date?: string) => void;
   setPassengers: (type: PassengerType, count: number) => void;
-  setCabinClass: (cabinClass: 'economy' | 'premium' | 'business' | 'first') => void;
+  setCabinClass: (cabinClass: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST') => void;
   setTripType: (type: 'oneWay' | 'roundTrip') => void;
   addRecentSearch: (search: { from: string; to: string; date: string }) => void;
   swapLocations: () => void;
@@ -47,7 +47,7 @@ const initialState = {
     child: 0,
     infant: 0,
   },
-  cabinClass: 'economy' as const,
+  cabinClass: 'ECONOMY' as const,
   tripType: 'oneWay' as const,
   recentSearches: [],
 };
@@ -64,11 +64,17 @@ export const useFlightStore = create<FlightSearchState>()(
         set((state) => ({
           passengers: { ...state.passengers, [type]: count },
         })),
-      setCabinClass: (cabinClass) => set({ cabinClass }),
+      setCabinClass: (cabinClass) => {
+        if (['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST'].includes(cabinClass)) {
+          set({ cabinClass });
+        } else {
+          console.error('Invalid cabin class');
+        }
+      },
       setTripType: (tripType) => set({ tripType }),
       addRecentSearch: (search) =>
         set((state) => ({
-          recentSearches: [search, ...state.recentSearches.slice(0, 4)],
+          recentSearches: [search, ...state.recentSearches.slice(0, 2)],
         })),
       swapLocations: () =>
         set((state) => ({
