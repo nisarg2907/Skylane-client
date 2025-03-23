@@ -1,18 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuthStore } from '../stores/AuthStore'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plane } from 'lucide-react'
 
 
 export const Header = () => {
-  const { user, signOut, initializeAuth } = useAuthStore()
+  const { user, signOut } = useAuthStore()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
-  useEffect(() => {
-    if (!user) {
-      initializeAuth()
-    }
-  }, [user, initializeAuth])
+
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

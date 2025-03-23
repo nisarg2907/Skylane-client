@@ -1,9 +1,18 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { SignInPage, SignUpPage } from './pages/Auth'
-import DashboardPage from './pages/Dashboard'
-import { BookingsPage } from './pages/Bookings'
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { SignInPage, SignUpPage } from './pages/Auth';
+import DashboardPage from './pages/Dashboard';
+import { BookingsPage } from './pages/Bookings';
+import { useAuthStore } from './stores/AuthStore';
+import { useEffect } from 'react';
 
 function App() {
+  const { initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    console.log("rerendered")
+    initializeAuth();
+  }, [initializeAuth]);
+
   return (
     <BrowserRouter>
       <Routes>
@@ -13,7 +22,7 @@ function App() {
         <Route path="/user-bookings" element={<BookingsPage />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;
