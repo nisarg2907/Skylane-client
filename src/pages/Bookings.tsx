@@ -109,7 +109,7 @@ export function BookingsPage() {
               <BookingCard
                 key={booking.id}
                 booking={booking}
-                onCancel={handleCancel}
+                onCancel={()=>handleCancel(booking.id)}
                 onEmailTicket={handleEmailTicket}
               />
             ))

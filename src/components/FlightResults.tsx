@@ -3,6 +3,7 @@ import { Flight } from '../types/flight';
 import { ArrowUpDown, Filter, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface FlightSearchResultsProps {
   flights: Flight[];
@@ -15,7 +16,7 @@ type SortOption = 'price' | 'departure' | 'duration';
 export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: FlightSearchResultsProps) {
   const [sortBy, setSortBy] = useState<SortOption>('price');
   const [showFilters, setShowFilters] = useState(false);
-
+  const navigate = useNavigate()
   const sortedFlights = [...flights].sort((a, b) => {
     switch (sortBy) {
       case 'price':
@@ -33,8 +34,7 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
   });
 
   const handleBook = (flight: Flight) => {
-    // TODO: Implement booking functionality
-    console.log("flight", flight)
+    navigate('/checkout', { state: { flight } });
     toast.success('Redirecting to booking page...');
   };
 

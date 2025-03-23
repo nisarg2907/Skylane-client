@@ -4,6 +4,7 @@ import DashboardPage from './pages/Dashboard';
 import { BookingsPage } from './pages/Bookings';
 import { useAuthStore } from './stores/AuthStore';
 import { useEffect } from 'react';
+import { Checkout } from './pages/Checkout';
 
 function App() {
   const { initializeAuth } = useAuthStore();
@@ -20,6 +21,7 @@ function App() {
         <Route path="/auth/login" element={<SignInPage />} />
         <Route path="/" element={<DashboardPage />} />
         <Route path="/user-bookings" element={<BookingsPage />} />
+        <Route path="/checkout" element={<Checkout />} />
       </Routes>
     </BrowserRouter>
   );
