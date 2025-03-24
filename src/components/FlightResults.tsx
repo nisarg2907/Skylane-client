@@ -1,24 +1,34 @@
 import { FlightCard } from './FlightCard';
-import { Flight } from '../types/flight';
+import { Flight, SearchResults } from '../types/flight';
 import { ArrowUpDown, Filter, Loader2, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../components/ui/Modal';
 import { useAuthStore } from '../stores/AuthStore';
+import toast from 'react-hot-toast';
 
 interface FlightSearchResultsProps {
-  flights: Flight[];
+  flights: SearchResults;
   isLoading: boolean;
   selectedCabinClass: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
+  mode?: 'outbound' | 'return';
+  selectedOutboundFlight?: Flight | null;
+  onFlightSelect?: (flight: Flight) => void;
 }
 
 type SortOption = 'price' | 'departure' | 'duration';
 
-export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: FlightSearchResultsProps) {
+export function FlightSearchResults({ 
+  flights, 
+  isLoading, 
+  selectedCabinClass, 
+  mode = 'outbound',
+  selectedOutboundFlight,
+  onFlightSelect
+}: FlightSearchResultsProps) {
   const [sortBy, setSortBy] = useState<SortOption>('price');
   const [showFilters, setShowFilters] = useState(false);
-  const [displayedFlights, setDisplayedFlights] = useState<Flight[]>([]);
+  const [displayedFlights, setDisplayedFlights] = useState<SearchResults>(flights);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   
@@ -33,79 +43,67 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
   
   const workerRef = useRef<Worker | null>(null);
   const navigate = useNavigate();
-  const {user} = useAuthStore()
+  const { user } = useAuthStore();
+
   // Initialize worker
   useEffect(() => {
-    // Create the worker
     workerRef.current = new Worker(new URL('../utils/worker.ts', import.meta.url), { type: 'module' });
     
-    // Set up message handler
     workerRef.current.onmessage = (event) => {
-      const { type, flights: processedFlights } = event.data;
-      
-      if (type === 'sortResult' || type === 'filterResult') {
-        setDisplayedFlights(processedFlights);
+      if (event.data.type === 'results') {
+        setDisplayedFlights(event.data.flights);
         setIsProcessing(false);
       }
     };
     
-    // Cleanup worker on component unmount
-    return () => {
-      workerRef.current?.terminate();
-    };
+    return () => workerRef.current?.terminate();
   }, []);
 
-  // Update cabin class in filters when it changes in props
+  // Update cabin class in filters
   useEffect(() => {
     setFilters(prev => ({ ...prev, cabinClass: selectedCabinClass }));
   }, [selectedCabinClass]);
 
-  // Process flights when they change or sorting/filtering options change
+  // Main processing effect
   useEffect(() => {
-    if (!workerRef.current || flights.length === 0) {
-      setDisplayedFlights(flights);
-      return;
-    }
+    if (!workerRef.current) return;
     
     setIsProcessing(true);
     
-    // Apply filters
     workerRef.current.postMessage({
-      type: 'filter',
+      type: 'process',
       flights,
-      filters
-    });
-  }, [flights, filters]);
-
-  // When filter results come back or sortBy changes, sort the results
-  useEffect(() => {
-    if (!workerRef.current || displayedFlights.length === 0) return;
-    
-    setIsProcessing(true);
-    
-    workerRef.current.postMessage({
-      type: 'sort',
-      flights: displayedFlights,
+      filters,
       sortBy,
+      mode,
       selectedCabinClass
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, displayedFlights.length, selectedCabinClass]);
-
+  }, [flights, filters, sortBy, mode, selectedCabinClass]);
   const handleBook = (flight: Flight) => {
-
+    if (mode === 'outbound' && onFlightSelect) {
+      onFlightSelect(flight);
+      return;
+    }
+  
     if (!user) {
       setShowLoginModal(true);
       return;
     }
-    navigate('/checkout', { state: { flight } });
+    
+    const bookingState = {
+      outboundFlight: mode === 'return' ? selectedOutboundFlight : flight,
+      returnFlight: mode === 'return' ? flight : undefined,
+      isRoundTrip: mode === 'return'
+    };
+    
+    navigate('/checkout', { state: bookingState });
     toast.success('Redirecting to booking page...');
   };
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
-
+  
   const clearFilters = () => {
     setFilters({
       minPrice: undefined,
@@ -116,6 +114,10 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
       cabinClass: selectedCabinClass
     });
   };
+
+  const flightsToDisplay = mode === 'outbound' 
+    ? displayedFlights.outboundFlights 
+    : displayedFlights.returnFlights;
 
   if (isLoading) {
     return (
@@ -136,13 +138,13 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
             </div>
           ) : (
             <>
-              {displayedFlights.length === 0 ? (
+              {flightsToDisplay.length === 0 ? (
                 <div className="text-red-500">
                   No flights found matching your criteria
                 </div>
               ) : (
                 <div className="text-blue-500">
-                  Found {displayedFlights.length} {displayedFlights.length === 1 ? 'flight' : 'flights'}
+                  Found {flightsToDisplay.length} {flightsToDisplay.length === 1 ? 'flight' : 'flights'}
                 </div>
               )}
             </>
@@ -226,16 +228,14 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
                     type="time"
                     className="p-2 border rounded text-sm w-full"
                     onChange={(e) => {
-                      // Create a date object for today with the selected time
                       const date = new Date();
                       const [hours, minutes] = e.target.value.split(':');
                       date.setHours(parseInt(hours || '0', 10));
                       date.setMinutes(parseInt(minutes || '0', 10));
-                      
                       handleFilterChange({
                         departureTimeRange: {
                           start: date.toISOString(),
-                          end: filters.departureTimeRange?.end || new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString()
+                          end: filters.departureTimeRange?.end || new Date(date.getTime() + 86400000).toISOString()
                         }
                       });
                     }}
@@ -247,12 +247,10 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
                     type="time"
                     className="p-2 border rounded text-sm w-full"
                     onChange={(e) => {
-                      // Create a date object for today with the selected time
                       const date = new Date();
                       const [hours, minutes] = e.target.value.split(':');
                       date.setHours(parseInt(hours || '23', 10));
                       date.setMinutes(parseInt(minutes || '59', 10));
-                      
                       handleFilterChange({
                         departureTimeRange: {
                           start: filters.departureTimeRange?.start || new Date().toISOString(),
@@ -275,16 +273,14 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
                     type="time"
                     className="p-2 border rounded text-sm w-full"
                     onChange={(e) => {
-                      // Create a date object for today with the selected time
                       const date = new Date();
                       const [hours, minutes] = e.target.value.split(':');
                       date.setHours(parseInt(hours || '0', 10));
                       date.setMinutes(parseInt(minutes || '0', 10));
-                      
                       handleFilterChange({
                         arrivalTimeRange: {
                           start: date.toISOString(),
-                          end: filters.arrivalTimeRange?.end || new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString()
+                          end: filters.arrivalTimeRange?.end || new Date(date.getTime() + 86400000).toISOString()
                         }
                       });
                     }}
@@ -296,12 +292,10 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
                     type="time"
                     className="p-2 border rounded text-sm w-full"
                     onChange={(e) => {
-                      // Create a date object for today with the selected time
                       const date = new Date();
                       const [hours, minutes] = e.target.value.split(':');
                       date.setHours(parseInt(hours || '23', 10));
                       date.setMinutes(parseInt(minutes || '59', 10));
-                      
                       handleFilterChange({
                         arrivalTimeRange: {
                           start: filters.arrivalTimeRange?.start || new Date().toISOString(),
@@ -345,13 +339,15 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
             <p className="text-gray-500 mt-2">Processing flight data...</p>
           </div>
         ) : (
-          displayedFlights.length > 0 ? (
-            displayedFlights.map((flight) => (
+          flightsToDisplay.length > 0 ? (
+            flightsToDisplay.map((flight) => (
               <FlightCard
                 key={flight.id}
                 flight={flight}
                 selectedCabinClass={selectedCabinClass}
                 onBook={handleBook}
+                isReturn={mode === 'return'}
+                selectedOutboundFlight={mode === 'return' ? selectedOutboundFlight : undefined}
               />
             ))
           ) : (

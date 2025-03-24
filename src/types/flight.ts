@@ -35,8 +35,12 @@ export interface Airport {
     
     status: 'SCHEDULED' | 'DELAYED' | 'DEPARTED' | 'IN_AIR' | 'LANDED' | 'CANCELLED';
     
-    // Relations
     airline: Airline;
     departureAirport: Airport;
     arrivalAirport: Airport;
   }
+
+export interface SearchResults {
+  outboundFlights: Flight[];
+  returnFlights: Flight[];
+}

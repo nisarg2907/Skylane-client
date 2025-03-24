@@ -3,134 +3,122 @@ import { Flight } from '../types/flight';
 type SortOption = 'price' | 'departure' | 'duration';
 
 interface WorkerMessage {
-  type: 'sort' | 'filter';
-  flights: Flight[];
-  sortBy?: SortOption;
+  type: 'process';
+  flights: {
+    outboundFlights: Flight[];
+    returnFlights: Flight[];
+  };
   filters?: {
     minPrice?: number;
     maxPrice?: number;
-    airlines?: string[];
-    departureTimeRange?: {
-      start: string; // ISO string
-      end: string;   // ISO string
-    };
-    arrivalTimeRange?: {
-      start: string; // ISO string
-      end: string;   // ISO string
-    };
-    maxDuration?: number; // in minutes
+    departureTimeRange?: { start: string; end: string };
+    arrivalTimeRange?: { start: string; end: string };
+    maxDuration?: number;
     cabinClass?: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
   };
+  sortBy?: SortOption;
+  mode: 'outbound' | 'return';
   selectedCabinClass?: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
 }
 
 self.onmessage = (event: MessageEvent<WorkerMessage>) => {
-  const { type, flights, sortBy, filters, selectedCabinClass } = event.data;
+  const { flights, filters, sortBy, mode, selectedCabinClass } = event.data;
 
-  if (type === 'sort' && sortBy) {
-    const sortedFlights = sortFlights(flights, sortBy, selectedCabinClass);
-    self.postMessage({ type: 'sortResult', flights: sortedFlights });
-  } else if (type === 'filter' && filters) {
-    const filteredFlights = filterFlights(flights, filters);
-    self.postMessage({ type: 'filterResult', flights: filteredFlights });
+  try {
+    // Filter and sort flights for the current mode
+    const processed = mode === 'outbound'
+      ? processFlights(flights.outboundFlights, filters, sortBy, selectedCabinClass)
+      : processFlights(flights.returnFlights, filters, sortBy, selectedCabinClass);
+
+    // Maintain unprocessed flights for the other mode
+    const result = {
+      outboundFlights: mode === 'outbound' ? processed : flights.outboundFlights,
+      returnFlights: mode === 'return' ? processed : flights.returnFlights
+    };
+
+    self.postMessage({ type: 'results', flights: result });
+  } catch (error) {
+    self.postMessage({
+      type: 'error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
+function processFlights(
+  flights: Flight[],
+  filters: WorkerMessage['filters'] = {},
+  sortBy: SortOption = 'price',
+  cabinClass: string = 'ECONOMY'
+) {
+  const result = filterFlights(flights, filters);
+  return sortFlights(result, sortBy, cabinClass);
+}
+
 function sortFlights(
-  flights: Flight[], 
-  sortBy: SortOption, 
-  cabinClass: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST' = 'ECONOMY'
+  flights: Flight[],
+  sortBy: SortOption,
+  cabinClass: string
 ): Flight[] {
   return [...flights].sort((a, b) => {
+    const aPrice = getFlightPrice(a, cabinClass);
+    const bPrice = getFlightPrice(b, cabinClass);
+    
     switch (sortBy) {
-      case 'price':
-        return getFlightPrice(a, cabinClass) - getFlightPrice(b, cabinClass);
-      case 'departure':
+      case 'price': return aPrice - bPrice;
+      case 'departure': 
         return new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime();
       case 'duration': {
-        const aDuration = new Date(a.arrivalTime).getTime() - new Date(a.departureTime).getTime();
-        const bDuration = new Date(b.arrivalTime).getTime() - new Date(b.departureTime).getTime();
-        return aDuration - bDuration;
+        const aDur = new Date(a.arrivalTime).getTime() - new Date(a.departureTime).getTime();
+        const bDur = new Date(b.arrivalTime).getTime() - new Date(b.departureTime).getTime();
+        return aDur - bDur;
       }
-      default:
-        return 0;
+      default: return 0;
     }
   });
 }
 
-function getFlightPrice(flight: Flight, cabinClass: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST'): number {
+function getFlightPrice(flight: Flight, cabinClass: string): number {
   switch (cabinClass) {
-    case 'ECONOMY':
-      return flight.economyPrice || 0;
-    case 'PREMIUM_ECONOMY':
-      return flight.premiumEconomyPrice || flight.economyPrice * 1.5 || 0;
-    case 'BUSINESS':
-      return flight.businessPrice || flight.economyPrice * 2.5 || 0;
-    case 'FIRST':
-      return flight.firstClassPrice || flight.economyPrice * 4 || 0;
-    default:
-      return flight.economyPrice || 0;
+    case 'PREMIUM_ECONOMY': return flight.premiumEconomyPrice || flight.economyPrice * 1.5;
+    case 'BUSINESS': return flight.businessPrice || flight.economyPrice * 2.5;
+    case 'FIRST': return flight.firstClassPrice || flight.economyPrice * 4;
+    default: return flight.economyPrice;
   }
 }
 
-function filterFlights(flights: Flight[], filters: NonNullable<WorkerMessage['filters']>): Flight[] {
+function filterFlights(flights: Flight[], filters: WorkerMessage['filters']): Flight[] {
   return flights.filter(flight => {
-    // Price filter based on selected cabin class
-    const cabinClass = filters.cabinClass || 'ECONOMY';
-    const flightPrice = getFlightPrice(flight, cabinClass);
+    const cabinClass = filters?.cabinClass || 'ECONOMY';
+    const price = getFlightPrice(flight, cabinClass);
     
-    if (filters.minPrice !== undefined && flightPrice < filters.minPrice) {
-      return false;
+    // Price filter
+    if (filters?.minPrice && price < filters.minPrice) return false;
+    if (filters?.maxPrice && price > filters.maxPrice) return false;
+
+    // Departure time filter
+    if (filters?.departureTimeRange) {
+      const depTime = new Date(flight.departureTime).getTime();
+      const start = new Date(filters.departureTimeRange.start).getTime();
+      const end = new Date(filters.departureTimeRange.end).getTime();
+      if (depTime < start || depTime > end) return false;
     }
-    
-    if (filters.maxPrice !== undefined && flightPrice > filters.maxPrice) {
-      return false;
+
+    // Arrival time filter
+    if (filters?.arrivalTimeRange) {
+      const arrTime = new Date(flight.arrivalTime).getTime();
+      const start = new Date(filters.arrivalTimeRange.start).getTime();
+      const end = new Date(filters.arrivalTimeRange.end).getTime();
+      if (arrTime < start || arrTime > end) return false;
     }
-    
-    // Airline filter
-    if (filters.airlines && filters.airlines.length > 0) {
-      // Convert flight.airline to string if it's not already
-      const flightAirline = typeof flight.airline === 'string' 
-        ? flight.airline 
-        : String(flight.airline);
-        
-      if (!filters.airlines.includes(flightAirline)) {
-        return false;
-      }
-    }
-    
-    // Departure time range filter
-    if (filters.departureTimeRange) {
-      const departureTime = new Date(flight.departureTime).getTime();
-      const startTime = new Date(filters.departureTimeRange.start).getTime();
-      const endTime = new Date(filters.departureTimeRange.end).getTime();
-      
-      if (departureTime < startTime || departureTime > endTime) {
-        return false;
-      }
-    }
-    
-    // Arrival time range filter
-    if (filters.arrivalTimeRange) {
-      const arrivalTime = new Date(flight.arrivalTime).getTime();
-      const startTime = new Date(filters.arrivalTimeRange.start).getTime();
-      const endTime = new Date(filters.arrivalTimeRange.end).getTime();
-      
-      if (arrivalTime < startTime || arrivalTime > endTime) {
-        return false;
-      }
-    }
-    
+
     // Duration filter
-    if (filters.maxDuration !== undefined) {
-      const durationMs = new Date(flight.arrivalTime).getTime() - new Date(flight.departureTime).getTime();
-      const durationMinutes = durationMs / (1000 * 60);
-      
-      if (durationMinutes > filters.maxDuration) {
-        return false;
-      }
+    if (filters?.maxDuration) {
+      const duration = (new Date(flight.arrivalTime).getTime() - 
+                       new Date(flight.departureTime).getTime()) / 60000;
+      if (duration > filters.maxDuration) return false;
     }
-    
+
     return true;
   });
 }

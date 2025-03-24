@@ -4,11 +4,20 @@ import { storageFactory } from './indexedDbStorage';
 
 export interface Booking {
   id: string;
-  flightNumber: string;
-  from: string;
-  to: string;
-  departureDate: string;
-  returnDate?: string;
+  outboundFlight: {
+    flightNumber: string;
+    from: string;
+    to: string;
+    departureDate: string;
+    airline: string;
+  };
+  returnFlight?: {
+    flightNumber: string;
+    from: string;
+    to: string;
+    departureDate: string;
+    airline: string;
+  };
   passengers: {
     adult: number;
     child: number;
@@ -18,7 +27,8 @@ export interface Booking {
   status: 'confirmed' | 'cancelled';
   price: number;
   bookingDate: string;
-  ticketUrl? : string;
+  ticketUrl?: string;
+  isRoundTrip: boolean;
 }
 
 interface BookingStore {

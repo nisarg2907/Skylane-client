@@ -4,21 +4,73 @@ import { Header } from '../components/Header';
 import { Globe2 } from 'lucide-react';
 import { RecentSearches } from '../components/RecentSearches';
 import { FlightSearchResults } from '../components/FlightResults';
-import { Flight } from '../types/flight';
+import { SearchResults, Flight } from '../types/flight';
 import { useFlightStore } from '../stores/FlightStore';
 
 const Dashboard = () => {
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
-    const [flights, setFlights] = useState<Flight[]>([]);  // Store flight results
-    const { recentSearches } = useFlightStore();
+    const [flights, setFlights] = useState<SearchResults>({outboundFlights:[], returnFlights:[]});  
+    const [selectedOutboundFlight, setSelectedOutboundFlight] = useState<Flight | null>(null);
+    const { recentSearches, tripType } = useFlightStore();
 
-    const handleSearch = async (flightData: Flight[]) => {
+    const handleSearch = async (flightData: SearchResults) => {
         setIsSearching(true);
         setHasSearched(true);
+        setSelectedOutboundFlight(null);
 
         setFlights(flightData); 
         setIsSearching(false);
+    };
+
+    const handleOutboundFlightSelect = (flight: Flight) => {
+        setSelectedOutboundFlight(flight);
+    };
+
+    const renderFlightSearchResults = () => {
+        // One-way trip: show all flights
+        if (tripType === 'oneWay') {
+            return (
+                <FlightSearchResults 
+                    flights={flights} 
+                    isLoading={isSearching} 
+                    selectedCabinClass="ECONOMY" 
+                />
+            );
+        }
+
+        // Round trip: two-step selection process
+        return (
+            <>
+                {!selectedOutboundFlight ? (
+                    <>
+                        <h3 className="text-xl font-semibold mb-4 text-center">
+                            Select Outbound Flight
+                        </h3>
+                        <FlightSearchResults 
+                            flights={flights} 
+                            isLoading={isSearching} 
+                            selectedCabinClass="ECONOMY" 
+                            mode="outbound"
+                            onFlightSelect={handleOutboundFlightSelect}
+                        />
+                    </>
+                ) : (
+                    <>
+                        <h3 className="text-xl font-semibold mb-4 text-center">
+                            Select Return Flight
+                        </h3>
+                        <FlightSearchResults 
+                            flights={flights} 
+                            isLoading={isSearching} 
+                            selectedCabinClass="ECONOMY" 
+                            mode="return"
+                            selectedOutboundFlight={selectedOutboundFlight}
+                        />
+                    </>
+                )}
+            </>
+        );
     };
 
     return (
@@ -53,11 +105,7 @@ const Dashboard = () => {
 
                 {recentSearches.length > 0 && <RecentSearches />}
 
-                {hasSearched && !isSearching && (
-                    <div className="mt-8">
-                        <FlightSearchResults flights={flights} isLoading={isSearching} selectedCabinClass="ECONOMY" />
-                    </div>
-                )}
+                {hasSearched && !isSearching && renderFlightSearchResults()}
             </main>
         </div>
     );

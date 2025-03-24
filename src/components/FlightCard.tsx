@@ -8,9 +8,17 @@ interface FlightCardProps {
   flight: Flight;
   selectedCabinClass: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
   onBook: (flight: Flight) => void;
+  isReturn?: boolean;  
+  selectedOutboundFlight?: Flight | null;
 }
 
-export function FlightCard({ flight, selectedCabinClass, onBook }: FlightCardProps) {
+export function FlightCard({ 
+  flight, 
+  selectedCabinClass, 
+  onBook, 
+  isReturn,
+  selectedOutboundFlight 
+}: FlightCardProps) {
   const departureTime = parseISO(flight.departureTime);
   const arrivalTime = parseISO(flight.arrivalTime);
   const duration = formatDistanceStrict(arrivalTime, departureTime);
@@ -48,7 +56,12 @@ export function FlightCard({ flight, selectedCabinClass, onBook }: FlightCardPro
   const price = getPrice();
   const availableSeats = getAvailableSeats();
 
-  if (!price || !availableSeats) {
+  // Check if return flight is valid (must be after outbound flight)
+  const isValidReturnFlight = isReturn && selectedOutboundFlight 
+    ? parseISO(flight.departureTime) > parseISO(selectedOutboundFlight.arrivalTime)
+    : true;
+
+  if (!price || !availableSeats || (isReturn && !isValidReturnFlight)) {
     return null;
   }
 
@@ -109,10 +122,28 @@ export function FlightCard({ flight, selectedCabinClass, onBook }: FlightCardPro
         <div className="text-sm text-gray-600">
           {availableSeats} seats available
         </div>
-        <Button onClick={() => onBook(flight)}>
-          Book Now
-        </Button>
+        {!isReturn && (
+          <Button onClick={() => onBook(flight)}>
+            Select Outbound Flight
+          </Button>
+        )}
+        {isReturn && (
+          <Button 
+            onClick={() => onBook(flight)}
+            disabled={!isValidReturnFlight}
+          >
+            {isValidReturnFlight 
+              ? 'Select Return Flight' 
+              : 'Invalid Return Flight'}
+          </Button>
+        )}
       </div>
+      
+      {isReturn && !isValidReturnFlight && (
+        <div className="text-xs text-red-500 mt-2 text-center">
+          Return flight must be after your outbound flight
+        </div>
+      )}
     </div>
   );
 }

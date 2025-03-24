@@ -27,10 +27,16 @@ interface PassengerFormData {
   type: 'ADULT' | 'CHILD' | 'INFANT';
 }
 
+interface CheckoutLocationState {
+  outboundFlight: Flight;
+  returnFlight?: Flight;
+  isRoundTrip?: boolean;
+}
+
 export function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const flight = location.state?.flight as Flight;
+  const { outboundFlight, returnFlight, isRoundTrip } = location.state as CheckoutLocationState;
   const { passengers, cabinClass } = useFlightStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
@@ -84,7 +90,7 @@ export function Checkout() {
     }
   };
 
-  if (!flight) {
+  if (!outboundFlight) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
@@ -96,23 +102,27 @@ export function Checkout() {
     );
   }
 
-  const departureTime = parseISO(flight.departureTime);
-  const arrivalTime = parseISO(flight.arrivalTime);
-  const duration = formatDistanceStrict(arrivalTime, departureTime);
-
   const totalPrice = (() => {
-    switch (cabinClass.toUpperCase()) {
-      case 'ECONOMY':
-        return flight.economyPrice * (passengers.adult + passengers.child);
-      case 'PREMIUM_ECONOMY':
-        return (flight.premiumEconomyPrice || 0) * (passengers.adult + passengers.child);
-      case 'BUSINESS':
-        return (flight.businessPrice || 0) * (passengers.adult + passengers.child);
-      case 'FIRST':
-        return (flight.firstClassPrice || 0) * (passengers.adult + passengers.child);
-      default:
-        return flight.economyPrice * (passengers.adult + passengers.child);
+    const calculateFlightPrice = (flight: Flight) => {
+      switch (cabinClass.toUpperCase()) {
+        case 'ECONOMY':
+          return flight.economyPrice * (passengers.adult + passengers.child);
+        case 'PREMIUM_ECONOMY':
+          return (flight.premiumEconomyPrice || 0) * (passengers.adult + passengers.child);
+        case 'BUSINESS':
+          return (flight.businessPrice || 0) * (passengers.adult + passengers.child);
+        case 'FIRST':
+          return (flight.firstClassPrice || 0) * (passengers.adult + passengers.child);
+        default:
+          return flight.economyPrice * (passengers.adult + passengers.child);
+      }
+    };
+
+    let price = calculateFlightPrice(outboundFlight);
+    if (isRoundTrip && returnFlight) {
+      price += calculateFlightPrice(returnFlight);
     }
+    return price;
   })();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,7 +137,7 @@ export function Checkout() {
     
     try {
        await api.post('/bookings', {
-        flightId: flight.id,
+        flightId: outboundFlight.id,
         passengers: passengerForms,
         cabinClass: cabinClass.toUpperCase(),
         totalAmount: totalPrice,
@@ -181,53 +191,115 @@ export function Checkout() {
 
     <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
       <div className="bg-blue-50 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center">
-              <img
-                src={`https://api.dicebear.com/7.x/initials/svg?seed=${flight.airline.name}`}
-                alt={flight.airline.name}
-                className="h-8 w-8"
-              />
-            </div>
-            <div>
-              <div className="font-medium text-gray-900">{flight.airline.name}</div>
-              <div className="text-sm text-gray-500">Flight {flight.flightNumber}</div>
+        {/* Outbound Flight */}
+        <div className="mb-6">
+          <div className="text-sm font-medium text-gray-500 mb-2">Outbound Flight</div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center">
+                <img
+                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${outboundFlight.airline.name}`}
+                  alt={outboundFlight.airline.name}
+                  className="h-8 w-8"
+                />
+              </div>
+              <div>
+                <div className="font-medium text-gray-900">{outboundFlight.airline.name}</div>
+                <div className="text-sm text-gray-500">Flight {outboundFlight.flightNumber}</div>
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">{formatPrice(totalPrice)}</div>
-            <div className="text-sm text-gray-500">{cabinClass.toUpperCase().replace('_', ' ')}</div>
+
+          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            <div className="flex-1">
+              <div className="text-xl font-semibold">
+                {format(parseISO(outboundFlight.departureTime), 'HH:mm')}
+              </div>
+              <div className="text-sm text-gray-500">{outboundFlight.departureAirport.code}</div>
+              <div className="text-sm text-gray-700">{outboundFlight.departureAirport.city}</div>
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-sm text-gray-500 flex items-center gap-1">
+                <Plane className="h-4 w-4" />
+                {formatDistanceStrict(
+                  parseISO(outboundFlight.arrivalTime), 
+                  parseISO(outboundFlight.departureTime)
+                )}
+              </div>
+              <div className="w-32 h-px bg-gray-300 relative">
+                <div className="absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 h-2 w-2 bg-blue-600 rounded-full" />
+              </div>
+              <div className="text-xs text-gray-500">Direct</div>
+            </div>
+
+            <div className="flex-1 text-right">
+              <div className="text-xl font-semibold">
+                {format(parseISO(outboundFlight.arrivalTime), 'HH:mm')}
+              </div>
+              <div className="text-sm text-gray-500">{outboundFlight.arrivalAirport.code}</div>
+              <div className="text-sm text-gray-700">{outboundFlight.arrivalAirport.city}</div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          <div className="flex-1">
-            <div className="text-xl font-semibold">
-              {format(departureTime, 'HH:mm')}
+        {/* Return Flight (if round trip) */}
+        {isRoundTrip && returnFlight && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="text-sm font-medium text-gray-500 mb-2">Return Flight</div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center">
+                  <img
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${returnFlight.airline.name}`}
+                    alt={returnFlight.airline.name}
+                    className="h-8 w-8"
+                  />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-900">{returnFlight.airline.name}</div>
+                  <div className="text-sm text-gray-500">Flight {returnFlight.flightNumber}</div>
+                </div>
+              </div>
             </div>
-            <div className="text-sm text-gray-500">{flight.departureAirport.code}</div>
-            <div className="text-sm text-gray-700">{flight.departureAirport.city}</div>
-          </div>
 
-          <div className="flex flex-col items-center gap-2">
-            <div className="text-sm text-gray-500 flex items-center gap-1">
-              <Plane className="h-4 w-4" />
-              {duration}
-            </div>
-            <div className="w-32 h-px bg-gray-300 relative">
-              <div className="absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 h-2 w-2 bg-blue-600 rounded-full" />
-            </div>
-            <div className="text-xs text-gray-500">Direct</div>
-          </div>
+            <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex-1">
+                <div className="text-xl font-semibold">
+                  {format(parseISO(returnFlight.departureTime), 'HH:mm')}
+                </div>
+                <div className="text-sm text-gray-500">{returnFlight.departureAirport.code}</div>
+                <div className="text-sm text-gray-700">{returnFlight.departureAirport.city}</div>
+              </div>
 
-          <div className="flex-1 text-right">
-            <div className="text-xl font-semibold">
-              {format(arrivalTime, 'HH:mm')}
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-sm text-gray-500 flex items-center gap-1">
+                  <Plane className="h-4 w-4" />
+                  {formatDistanceStrict(
+                    parseISO(returnFlight.arrivalTime), 
+                    parseISO(returnFlight.departureTime)
+                  )}
+                </div>
+                <div className="w-32 h-px bg-gray-300 relative">
+                  <div className="absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 h-2 w-2 bg-blue-600 rounded-full" />
+                </div>
+                <div className="text-xs text-gray-500">Direct</div>
+              </div>
+
+              <div className="flex-1 text-right">
+                <div className="text-xl font-semibold">
+                  {format(parseISO(returnFlight.arrivalTime), 'HH:mm')}
+                </div>
+                <div className="text-sm text-gray-500">{returnFlight.arrivalAirport.code}</div>
+                <div className="text-sm text-gray-700">{returnFlight.arrivalAirport.city}</div>
+              </div>
             </div>
-            <div className="text-sm text-gray-500">{flight.arrivalAirport.code}</div>
-            <div className="text-sm text-gray-700">{flight.arrivalAirport.city}</div>
           </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-gray-500">{cabinClass.toUpperCase().replace('_', ' ')}</div>
+          <div className="text-2xl font-bold text-gray-900">{formatPrice(totalPrice)}</div>
         </div>
       </div>
 
