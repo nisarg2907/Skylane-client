@@ -16,6 +16,7 @@
     "autoprefixer": "^10.4.21",
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
+    "id": "^0.0.0",
     "lucide-react": "^0.483.0",
     "postcss": "^8.5.3",
     "react": "^19.0.0",

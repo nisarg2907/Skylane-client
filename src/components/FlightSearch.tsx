@@ -217,7 +217,7 @@ import api from '../lib/utils';
 import { Flight } from '../types/flight';
 
 interface FlightSearchFormProps {
-    onSearch: (searchParams: Flight[]) => void;  // Receive search results to pass to parent component
+    onSearch: (searchParams: Flight[]) => void;  
 }
 
 export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
@@ -243,7 +243,7 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
 
     useEffect(() => {
         if (tripType === 'oneWay') {
-            setReturnDate(undefined);  // Clear return date if one-way trip is selected
+            setReturnDate(undefined);  
         }
     }, [tripType, setReturnDate]);
 

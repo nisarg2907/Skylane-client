@@ -1,7 +1,9 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import axios from 'axios'
+import { storageFactory,clearAllData } from './indexedDbStorage'
 
 const API_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -66,310 +68,329 @@ const syncUserWithBackend = async (user: SupabaseUser | null) => {
   }
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
-  loading: false,
-  error: null,
-  accessToken: null,
-  refreshToken: null,
-  tokenRefreshInterval: null,
+// Create an IndexedDB storage for auth data
+const authStorage = storageFactory('auth-store');
 
-  // Get a valid access token, refreshing if necessary
-  getAccessToken: async () => {
-    // First check if we have a current session
-    const { data: sessionData } = await supabase.auth.getSession();
-    
-    if (!sessionData.session) {
-      console.log('No active session found when requesting token');
-      return null;
-    }
-    
-    // Check if token is about to expire (less than 5 minutes remaining)
-    const expiresAt = sessionData.session.expires_at ? sessionData.session.expires_at * 1000 : 0;
-    const now = Date.now();
-    const timeUntilExpiry = expiresAt - now;
-    
-    // If token is about to expire, refresh it first
-    if (timeUntilExpiry < 5 * 60 * 1000) {
-      console.log(`Token expires in ${Math.round(timeUntilExpiry/60000)} minutes, refreshing now...`);
-      const refreshed = await get().refreshSession();
-      if (!refreshed) {
-        console.error('Failed to refresh token');
-        return null;
-      }
-    }
-    
-    // Return the current token (either existing or newly refreshed)
-    const currentToken = get().accessToken;
-    return currentToken;
-  },
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      loading: false,
+      error: null,
+      accessToken: null,
+      refreshToken: null,
+      tokenRefreshInterval: null,
 
-  refreshSession: async () => {
-    try {
-      // First check if we have a session
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        console.log('No session to refresh');
-        return false;
-      }
-
-      console.log('Attempting to refresh session...');
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error('Failed to refresh session:', error.message);
+      // Get a valid access token, refreshing if necessary
+      getAccessToken: async () => {
+        // First check if we have a current session
+        const { data: sessionData } = await supabase.auth.getSession();
         
-        // If token refresh fails, clear the user session
-        set({ 
-          user: null, 
-          accessToken: null, 
-          refreshToken: null 
-        });
-        return false;
-      }
-      
-      if (data.session) {
-        console.log('Session refreshed successfully');
-        set({
-          accessToken: data.session.access_token,
-          refreshToken: data.session.refresh_token,
-        });
-        return true;
-      }
-      
-      return false;
-    } catch (err) {
-      console.error('Error refreshing session:', err);
-      return false;
-    }
-  },
-
-  signUp: async (email, password, firstName, lastName) => {
-    set({ loading: true, error: null });
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
-          emailRedirectTo: window.location.origin,
-        }
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      set({ loading: false });
-      alert('Please check your email to verify your account.');
-    } catch (err) {
-      const errorMessage = (err instanceof Error) ? err.message : 'An unknown error occurred';
-      set({ error: errorMessage, loading: false });
-    }
-  },
-
-  signIn: async (email, password) => {
-    set({ loading: true, error: null });
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      console.log('Sign in successful, session data:', data.session);
-      
-      if (data.session) {
-        set({
-          accessToken: data.session.access_token,
-          refreshToken: data.session.refresh_token,
-        });
-      }
-
-      if (data.user) {
-        await syncUserWithBackend(data.user);
-        const mappedUser = mapSupabaseUser(data.user);
-        set({ user: mappedUser, loading: false, error: null });
-      } else {
-        throw new Error('No user returned from sign in');
-      }
-    } catch (err) {
-      const errorMessage = (err instanceof Error) ? err.message : 'An unknown error occurred';
-      set({ error: errorMessage, loading: false });
-    }
-  },
-
-  signOut: async () => {
-    set({ loading: true });
-    try {
-      // Clear any refresh intervals
-      const interval = get().tokenRefreshInterval;
-      if (interval) {
-        clearInterval(interval);
-      }
-      
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      set({ 
-        user: null, 
-        loading: false, 
-        accessToken: null, 
-        refreshToken: null,
-        tokenRefreshInterval: null
-      });
-    } catch (err) {
-      const errorMessage = (err instanceof Error) ? err.message : 'An unknown error occurred';
-      set({ error: errorMessage, loading: false });
-    }
-  },   
-  
-  initializeAuth: () => {
-    console.log('Initializing auth...');
-    set({ loading: true });
-    
-    // Handle session setup
-    const setupSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error fetching session:', error.message);
-          set({ loading: false });
-          return;
+        if (!sessionData.session) {
+          console.log('No active session found when requesting token');
+          return null;
         }
         
-        if (data.session) {
-          console.log('Active session found:', data.session.user?.email);
-          
-          // Store tokens
-          set({
-            accessToken: data.session.access_token,
-            refreshToken: data.session.refresh_token,
-          });
-          
-          // Sync user with backend
-          if (data.session.user) {
-            await syncUserWithBackend(data.session.user);
-          }
-          
-          // Map user data
-          const mappedUser = mapSupabaseUser(data.session.user || null);
-          set({ user: mappedUser, loading: false });
-          
-          // Check if token needs immediate refresh (if less than 10 minutes left)
-          const expiresAt = data.session.expires_at ? data.session.expires_at * 1000 : 0;
-          const now = Date.now();
-          const timeUntilExpiry = expiresAt - now;
-          
-          if (timeUntilExpiry > 0 && timeUntilExpiry < 10 * 60 * 1000) {
-            console.log('Token expires soon, refreshing now...');
-            await get().refreshSession();
-          }
-        } else {
-          console.log('No active session found');
-          set({ loading: false });
-        }
-      } catch (err) {
-        console.error('Error during auth initialization:', err);
-        set({ loading: false });
-      }
-    };
-    
-    // Check for tokens in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('access_token');
-    const refreshToken = urlParams.get('refresh_token');
-    
-    if (accessToken && refreshToken) {
-      console.log('Tokens found in URL, setting session...');
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      }).then(() => {
-        setupSession();
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }).catch((err) => {
-        console.error('Error setting session from URL:', err);
-        set({ loading: false });
-      });
-    } else {
-      setupSession();
-    }
-    
-    // Create an actual token refresh function
-    const refreshTokenIfNeeded = async () => {
-      try {
-        // Only run this if we have a user
-        if (!get().user) return;
-        
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          console.log('No session found during refresh check');
-          return;
-        }
-        
-        const expiresAt = data.session.expires_at ? data.session.expires_at * 1000 : 0;
+        // Check if token is about to expire (less than 5 minutes remaining)
+        const expiresAt = sessionData.session.expires_at ? sessionData.session.expires_at * 1000 : 0;
         const now = Date.now();
         const timeUntilExpiry = expiresAt - now;
         
-        // Refresh if less than 10 minutes until expiry
-        if (timeUntilExpiry < 10 * 60 * 1000) {
+        // If token is about to expire, refresh it first
+        if (timeUntilExpiry < 5 * 60 * 1000) {
           console.log(`Token expires in ${Math.round(timeUntilExpiry/60000)} minutes, refreshing now...`);
-          await get().refreshSession();
-        } else {
-          console.log(`Token valid for ${Math.round(timeUntilExpiry/60000)} more minutes`);
+          const refreshed = await get().refreshSession();
+          if (!refreshed) {
+            console.error('Failed to refresh token');
+            return null;
+          }
         }
-      } catch (err) {
-        console.error('Error in token refresh check:', err);
-      }
-    };
-    
-    // Set up auth state change listener
-    const authListener = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email || 'no user');
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session) {
-          set({
-            accessToken: session.access_token,
-            refreshToken: session.refresh_token,
+        
+        // Return the current token (either existing or newly refreshed)
+        const currentToken = get().accessToken;
+        return currentToken;
+      },
+
+      refreshSession: async () => {
+        try {
+          // First check if we have a session
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData.session) {
+            console.log('No session to refresh');
+            return false;
+          }
+
+          console.log('Attempting to refresh session...');
+          const { data, error } = await supabase.auth.refreshSession();
+          
+          if (error) {
+            console.error('Failed to refresh session:', error.message);
+            
+            // If token refresh fails, clear the user session
+            set({ 
+              user: null, 
+              accessToken: null, 
+              refreshToken: null 
+            });
+            return false;
+          }
+          
+          if (data.session) {
+            console.log('Session refreshed successfully');
+            set({
+              accessToken: data.session.access_token,
+              refreshToken: data.session.refresh_token,
+            });
+            return true;
+          }
+          
+          return false;
+        } catch (err) {
+          console.error('Error refreshing session:', err);
+          return false;
+        }
+      },
+
+      signUp: async (email, password, firstName, lastName) => {
+        set({ loading: true, error: null });
+        try {
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                first_name: firstName,
+                last_name: lastName,
+              },
+              emailRedirectTo: window.location.origin,
+            }
           });
           
-          const mappedUser = mapSupabaseUser(session.user || null);
-          set({ user: mappedUser, loading: false });
+          if (error) {
+            throw error;
+          }
+          
+          set({ loading: false });
+          alert('Please check your email to verify your account.');
+        } catch (err) {
+          const errorMessage = (err instanceof Error) ? err.message : 'An unknown error occurred';
+          set({ error: errorMessage, loading: false });
         }
-      } else if (event === 'SIGNED_OUT') {
-        set({ 
-          user: null, 
-          accessToken: null, 
-          refreshToken: null,
-        });
-      }
-    });
-    
-    // Run refresh check immediately
-    refreshTokenIfNeeded();
-    
-    // Set up more frequent token refresh interval (every 5 minutes)
-    const tokenRefreshInterval = setInterval(refreshTokenIfNeeded, 5 * 60 * 1000);
-    set({ tokenRefreshInterval });
-    
-    // Return a cleanup function
-    return () => {
-      if (authListener && 'subscription' in authListener.data) {
-        authListener.data.subscription.unsubscribe();
-      }
+      },
+
+      signIn: async (email, password) => {
+        set({ loading: true, error: null });
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (error) {
+            throw error;
+          }
+          
+          console.log('Sign in successful, session data:', data.session);
+          
+          if (data.session) {
+            set({
+              accessToken: data.session.access_token,
+              refreshToken: data.session.refresh_token,
+            });
+          }
+
+          if (data.user) {
+            await syncUserWithBackend(data.user);
+            const mappedUser = mapSupabaseUser(data.user);
+            set({ user: mappedUser, loading: false, error: null });
+          } else {
+            throw new Error('No user returned from sign in');
+          }
+        } catch (err) {
+          const errorMessage = (err instanceof Error) ? err.message : 'An unknown error occurred';
+          set({ error: errorMessage, loading: false });
+        }
+      },
+
+      signOut: async () => {
+        set({ loading: true });
+        try {
+          // Clear any refresh intervals
+          const interval = get().tokenRefreshInterval;
+          if (interval) {
+            clearInterval(interval);
+          }
+          
+          const { error } = await supabase.auth.signOut();
+          if (error) throw error;
+          
+          set({ 
+            user: null, 
+            loading: false, 
+            accessToken: null, 
+            refreshToken: null,
+            tokenRefreshInterval: null
+          });
+          await clearAllData()
+        } catch (err) {
+          const errorMessage = (err instanceof Error) ? err.message : 'An unknown error occurred';
+          set({ error: errorMessage, loading: false });
+        }
+      },   
       
-      clearInterval(tokenRefreshInterval);
-      set({ tokenRefreshInterval: null });
-    };
-  },
-}));
+      initializeAuth: () => {
+        console.log('Initializing auth...');
+        set({ loading: true });
+        
+        // Handle session setup
+        const setupSession = async () => {
+          try {
+            const { data, error } = await supabase.auth.getSession();
+            
+            if (error) {
+              console.error('Error fetching session:', error.message);
+              set({ loading: false });
+              return;
+            }
+            
+            if (data.session) {
+              console.log('Active session found:', data.session.user?.email);
+              
+              // Store tokens
+              set({
+                accessToken: data.session.access_token,
+                refreshToken: data.session.refresh_token,
+              });
+              
+              // Sync user with backend
+              if (data.session.user) {
+                await syncUserWithBackend(data.session.user);
+              }
+              
+              // Map user data
+              const mappedUser = mapSupabaseUser(data.session.user || null);
+              set({ user: mappedUser, loading: false });
+              
+              // Check if token needs immediate refresh (if less than 10 minutes left)
+              const expiresAt = data.session.expires_at ? data.session.expires_at * 1000 : 0;
+              const now = Date.now();
+              const timeUntilExpiry = expiresAt - now;
+              
+              if (timeUntilExpiry > 0 && timeUntilExpiry < 10 * 60 * 1000) {
+                console.log('Token expires soon, refreshing now...');
+                await get().refreshSession();
+              }
+            } else {
+              console.log('No active session found');
+              set({ loading: false });
+            }
+          } catch (err) {
+            console.error('Error during auth initialization:', err);
+            set({ loading: false });
+          }
+        };
+        
+        // Check for tokens in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token');
+        
+        if (accessToken && refreshToken) {
+          console.log('Tokens found in URL, setting session...');
+          supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          }).then(() => {
+            setupSession();
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }).catch((err) => {
+            console.error('Error setting session from URL:', err);
+            set({ loading: false });
+          });
+        } else {
+          setupSession();
+        }
+        
+        // Create an actual token refresh function
+        const refreshTokenIfNeeded = async () => {
+          try {
+            // Only run this if we have a user
+            if (!get().user) return;
+            
+            const { data } = await supabase.auth.getSession();
+            if (!data.session) {
+              console.log('No session found during refresh check');
+              return;
+            }
+            
+            const expiresAt = data.session.expires_at ? data.session.expires_at * 1000 : 0;
+            const now = Date.now();
+            const timeUntilExpiry = expiresAt - now;
+            
+            // Refresh if less than 10 minutes until expiry
+            if (timeUntilExpiry < 10 * 60 * 1000) {
+              console.log(`Token expires in ${Math.round(timeUntilExpiry/60000)} minutes, refreshing now...`);
+              await get().refreshSession();
+            } else {
+              console.log(`Token valid for ${Math.round(timeUntilExpiry/60000)} more minutes`);
+            }
+          } catch (err) {
+            console.error('Error in token refresh check:', err);
+          }
+        };
+        
+        // Set up auth state change listener
+        const authListener = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('Auth state changed:', event, session?.user?.email || 'no user');
+          
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            if (session) {
+              set({
+                accessToken: session.access_token,
+                refreshToken: session.refresh_token,
+              });
+              
+              const mappedUser = mapSupabaseUser(session.user || null);
+              set({ user: mappedUser, loading: false });
+            }
+          } else if (event === 'SIGNED_OUT') {
+            set({ 
+              user: null, 
+              accessToken: null, 
+              refreshToken: null,
+            });
+          }
+        });
+        
+        // Run refresh check immediately
+        refreshTokenIfNeeded();
+        
+        // Set up more frequent token refresh interval (every 5 minutes)
+        const tokenRefreshInterval = setInterval(refreshTokenIfNeeded, 5 * 60 * 1000);
+        set({ tokenRefreshInterval });
+        
+        // Return a cleanup function
+        return () => {
+          if (authListener && 'subscription' in authListener.data) {
+            authListener.data.subscription.unsubscribe();
+          }
+          
+          clearInterval(tokenRefreshInterval);
+          set({ tokenRefreshInterval: null });
+        };
+      },
+    }),
+    {
+      name: 'auth-store',
+      storage: authStorage,
+      // Only persist safe fields (not functions or intervals)
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        // Don't persist loading state, error messages, or the interval
+      }),
+    }
+  )
+);

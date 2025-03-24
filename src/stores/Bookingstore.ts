@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { storageFactory } from './indexedDbStorage';
 
 export interface Booking {
   id: string;
@@ -26,6 +27,9 @@ interface BookingStore {
   getBooking: (id: string) => Booking | undefined;
 }
 
+// Create an IndexedDB storage for bookings
+const bookingStorage = storageFactory('bookings');
+
 export const useBookingStore = create<BookingStore>()(
   persist(
     (set, get) => ({
@@ -44,6 +48,7 @@ export const useBookingStore = create<BookingStore>()(
     }),
     {
       name: 'booking-store',
+      storage: bookingStorage,
     }
   )
 );

@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { FlightSearchForm } from '../components/FlightSearch';
 import { Header } from '../components/Header';
 import { Globe2 } from 'lucide-react';
-// import { RecentSearches } from '../components/RecentSearches';
+import { RecentSearches } from '../components/RecentSearches';
 import { FlightSearchResults } from '../components/FlightResults';
-// import { useFlightStore } from '../stores/FlightStore';
 import { Flight } from '../types/flight';
+import { useFlightStore } from '../stores/FlightStore';
 
 const Dashboard = () => {
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [flights, setFlights] = useState<Flight[]>([]);  // Store flight results
-    // const { recentSearches } = useFlightStore();
+    const { recentSearches } = useFlightStore();
 
     const handleSearch = async (flightData: Flight[]) => {
         setIsSearching(true);
@@ -51,7 +51,7 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                {/* {recentSearches.length > 0 && <RecentSearches />} */}
+                {recentSearches.length > 0 && <RecentSearches />}
 
                 {hasSearched && !isSearching && (
                     <div className="mt-8">

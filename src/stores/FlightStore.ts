@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { storageFactory } from './indexedDbStorage';
 
 export type PassengerType = 'adult' | 'child' | 'infant';
 
@@ -52,6 +53,9 @@ const initialState = {
   recentSearches: [],
 };
 
+// Create an IndexedDB storage for flight search
+const flightSearchStorage = storageFactory('flight-search');
+
 export const useFlightStore = create<FlightSearchState>()(
   persist(
     (set) => ({
@@ -85,6 +89,7 @@ export const useFlightStore = create<FlightSearchState>()(
     }),
     {
       name: 'flight-search-store',
+      storage: flightSearchStorage,
     }
   )
 );
