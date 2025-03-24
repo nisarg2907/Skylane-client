@@ -6,15 +6,16 @@ import { format } from 'date-fns';
 
 interface BookingCardProps {
   booking: Booking;
-  onCancel: (id: string) => void;
-  onDownloadTicket: (booking: Booking) => void;
+  onCancel?: (id: string) => void;
+  onDownloadTicket?: (booking: Booking) => void;
+  onCardClick?: (booking: Booking) => void; // Made onCardClick prop optional
 }
 
-export function BookingCard({ booking, onCancel, onDownloadTicket }: BookingCardProps) {
+export function BookingCard({ booking, onCancel, onDownloadTicket, onCardClick }: BookingCardProps) {
   const totalPassengers = booking.passengers.adult + booking.passengers.child + booking.passengers.infant;
-
+ 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 relative">
+    <div className="bg-white rounded-lg shadow-md p-6 relative cursor-pointer" onClick={() => onCardClick && onCardClick(booking)}>
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center">
@@ -71,21 +72,31 @@ export function BookingCard({ booking, onCancel, onDownloadTicket }: BookingCard
         
         {booking.status !== 'cancelled' && (
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              className="flex-1 min-w-[200px]"
-              onClick={() => onDownloadTicket(booking)}
-            >
-              <Download className="h-4 w-4 mt-0.5 mr-2" />
-              Download Ticket
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 min-w-[150px] text-red-600 hover:bg-red-50 hover:border-red-600"
-              onClick={() => onCancel(booking.id)}
-            >
-              Cancel Ticket
-            </Button>
+            {onDownloadTicket && (
+              <Button
+                variant="outline"
+                className="flex-1 min-w-[200px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownloadTicket(booking);
+                }}
+              >
+                <Download className="h-4 w-4 mt-0.5 mr-2" />
+                Download Ticket
+              </Button>
+            )}
+            {onCancel && (
+              <Button
+                variant="outline"
+                className="flex-1 min-w-[150px] text-red-600 hover:bg-red-50 hover:border-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancel(booking.id);
+                }}
+              >
+                Cancel Ticket
+              </Button>
+            )}
           </div>
         )}
       </div>

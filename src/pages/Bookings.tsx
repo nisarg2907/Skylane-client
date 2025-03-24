@@ -16,6 +16,11 @@ export function BookingsPage() {
     const fetchBookings = async () => {
       try {
         const response = await api.get('/bookings');
+        response.data.forEach((booking: Booking) => {
+          if (booking.ticketUrl) {
+            console.log("url",booking.ticketUrl);
+          }
+        });
         setBookings(response.data);
       } catch (error) {
         console.error('Failed to fetch bookings:', error);
@@ -122,8 +127,12 @@ export function BookingsPage() {
               <BookingCard
                 key={booking.id}
                 booking={booking}
-                onCancel={()=>handleCancel(booking.id)}
+                onCancel={() => handleCancel(booking.id)}
                 onDownloadTicket={handleTicketDownload}
+                onCardClick={() => {
+                  console.log("clicked", booking.id);
+                  navigate('/update-booking', { state: { id: booking.id } });
+                }}
               />
             ))
           )}
