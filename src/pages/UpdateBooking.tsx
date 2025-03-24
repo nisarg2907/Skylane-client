@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { Header } from '../components/Header';
 
 interface Passenger {
   id: string;
@@ -157,21 +158,23 @@ export function UpdateBookingPage() {
   const arrivalAirport = flight?.arrivalAirport;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <>
+    <Header/>
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <Button
         variant="ghost"
-        className="mb-6"
-        onClick={() => navigate('/bookings')}
+        className="mb-6 text-xl"
+        onClick={() => navigate(-1)}
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Bookings
+        Go Back 
       </Button>
 
       <div className="space-y-6">
         {/* Flight Details Card */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="bg-blue-50 px-6 py-4">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Update Booking</h1>
+            <h1 className="text-2xl text-center font-bold text-gray-900 mb-4">Update Booking</h1>
             <div className="flex flex-col sm:flex-row justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center">
@@ -308,5 +311,6 @@ export function UpdateBookingPage() {
         </form>
       </div>
     </div>
+    </>
   );
 }

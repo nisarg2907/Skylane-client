@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import axios from 'axios'
-import { storageFactory,clearAllData } from './indexedDbStorage'
+import { storageFactory, clearAllData } from './indexedDbStorage'
 
 const API_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -27,6 +27,7 @@ interface AuthState {
   initializeAuth: () => () => void;
   refreshSession: () => Promise<boolean>;
   getAccessToken: () => Promise<string | null>;
+  updateUserInStore: (updatedUser: AppUser) => Promise<void>;
 }
 
 const mapSupabaseUser = (user: SupabaseUser | null): AppUser | null => {
@@ -379,6 +380,29 @@ export const useAuthStore = create<AuthState>()(
           clearInterval(tokenRefreshInterval);
           set({ tokenRefreshInterval: null });
         };
+      },
+
+      updateUserInStore: async (updatedUser: AppUser) => {
+        if (!updatedUser) return;
+        
+        try {
+          // Update the user in the store
+          set({ user: updatedUser });
+          
+          // Optionally, you could sync with Supabase metadata here
+          const { error } = await supabase.auth.updateUser({
+            data: {
+              first_name: updatedUser.firstName,
+              last_name: updatedUser.lastName
+            }
+          });
+          
+          if (error) {
+            console.error('Error updating user metadata in Supabase:', error);
+          }
+        } catch (err) {
+          console.error('Error updating user in store:', err);
+        }
       },
     }),
     {

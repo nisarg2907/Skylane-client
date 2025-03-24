@@ -7,27 +7,35 @@ import toast from 'react-hot-toast';
 import api from '../lib/utils';
 import { Button } from '../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { Modal } from '../components/ui/Modal';
 
 export function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'cancelled'>('all');
-  const navigate = useNavigate()
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const response = await api.get('/bookings');
-        response.data.forEach((booking: Booking) => {
-          if (booking.ticketUrl) {
-            console.log("url",booking.ticketUrl);
-          }
-        });
-        setBookings(response.data);
-      } catch (error) {
-        console.error('Failed to fetch bookings:', error);
-        toast.error('Failed to fetch bookings');
-      }
-    };
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/bookings');
+      response.data.forEach((booking: Booking) => {
+        if (booking.ticketUrl) {
+          console.log("url", booking.ticketUrl);
+        }
+      });
+      setBookings(response.data);
+    } catch (error) {
+      console.error('Failed to fetch bookings:', error);
+      toast.error('Failed to fetch bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchBookings();
   }, []);
 
@@ -38,16 +46,24 @@ export function BookingsPage() {
   });
 
   const handleCancel = (id: string) => {
-    if (window.confirm('Are you sure you want to cancel this booking?')) {
-      // Assuming cancelBooking is an API call
-      api.delete(`/bookings/${id}`)
+    setBookingToCancel(id);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancel = () => {
+    if (bookingToCancel) {
+      api.delete(`/bookings/${bookingToCancel}`)
         .then(() => {
-          setBookings((prevBookings) => prevBookings.filter((booking) => booking.id !== id));
+          setBookings((prevBookings) => prevBookings.filter((booking) => booking.id !== bookingToCancel));
           toast.success('Booking cancelled successfully');
         })
         .catch((error) => {
           console.error('Failed to cancel booking:', error);
           toast.error('Failed to cancel booking');
+        }).finally(() => {
+          fetchBookings();
+          setShowCancelModal(false);
+          setBookingToCancel(null);
         });
     }
   };
@@ -66,14 +82,14 @@ export function BookingsPage() {
       <Header />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <Button
-      variant="ghost"
-      className="mb-6 text-xl"
-      onClick={() => navigate(-1)}
-    >
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Go Back 
-    </Button>
+          <Button
+            variant="ghost"
+            className="mb-6 text-xl"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Go Back
+          </Button>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Bookings</h1>
           <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
             <button
@@ -110,7 +126,12 @@ export function BookingsPage() {
         </div>
 
         <div className="space-y-6">
-          {filteredBookings.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="loader mx-auto h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Loading bookings...</h3>
+            </div>
+          ) : filteredBookings.length === 0 ? (
             <div className="text-center py-12">
               <Inbox className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings found</h3>
@@ -138,6 +159,16 @@ export function BookingsPage() {
           )}
         </div>
       </div>
+
+      {showCancelModal && (
+        <Modal
+          title="Cancel Booking"
+          description="Are you sure you want to cancel this booking?"
+          onConfirm={confirmCancel}
+          onCancel={() => setShowCancelModal(false)}
+          cancelLabel='Login'
+        />
+      )}
     </>
   );
 }

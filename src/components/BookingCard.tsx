@@ -15,7 +15,7 @@ export function BookingCard({ booking, onCancel, onDownloadTicket, onCardClick }
   const totalPassengers = booking.passengers.adult + booking.passengers.child + booking.passengers.infant;
  
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 relative cursor-pointer" onClick={() => onCardClick && onCardClick(booking)}>
+    <div className="bg-white rounded-lg shadow-md p-6 relative cursor-pointer" onClick={() => onCardClick && onCardClick(booking)} onClickCapture={(e) => booking.status === 'cancelled' && e.stopPropagation()}>
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center">

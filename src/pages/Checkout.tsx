@@ -3,12 +3,22 @@ import { useFlightStore } from '../stores/FlightStore';
 import { Flight } from '../types/flight';
 import { formatPrice } from '../lib/utils';
 import { ArrowLeft, CreditCard, Loader2, Plane, User, Users } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { format, formatDistanceStrict, parseISO } from 'date-fns';
 import { Header } from '../components/Header';
-import api  from "../lib/utils"
+import api from "../lib/utils";
+
+interface PaymentMethod {
+  id: string;
+  cardType: string;
+  lastFourDigits: string;
+  expiryMonth: number;
+  expiryYear: number;
+  isDefault: boolean;
+  cardHolderName: string;
+}
 
 interface PassengerFormData {
   firstName: string;
@@ -23,7 +33,10 @@ export function Checkout() {
   const flight = location.state?.flight as Flight;
   const { passengers, cabinClass } = useFlightStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [passengerForms, setPassengerForms] = useState<PassengerFormData[]>(
     Array(passengers.adult + passengers.child + passengers.infant)
       .fill(null)
@@ -38,6 +51,38 @@ export function Checkout() {
             : 'INFANT'
       }))
   );
+
+  // Fetch payment methods when entering payment step
+  useEffect(() => {
+    if (currentStep === 2) {
+      fetchPaymentMethods();
+    }
+  }, [currentStep]);
+
+  // Function to fetch payment methods from API
+  const fetchPaymentMethods = async () => {
+    try {
+      setIsLoadingPaymentMethods(true);
+  
+      const response = await api.get('/users/payment-methods');
+      setPaymentMethods(response.data);
+      
+      // Select default payment method if available
+      const defaultMethod = response.data.find((method: PaymentMethod) => method.isDefault);
+      if (defaultMethod) {
+        setSelectedPaymentMethodId(defaultMethod.id);
+      } else if (response.data.length > 0) {
+        setSelectedPaymentMethodId(response.data[0].id);
+      } else {
+        toast.error('No payment methods available');
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      toast.error('Failed to load payment methods');
+    } finally {
+      setIsLoadingPaymentMethods(false);
+    }
+  };
 
   if (!flight) {
     return (
@@ -72,27 +117,25 @@ export function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (currentStep === 2 && !selectedPaymentMethodId) {
+      toast.error('Please select a payment method');
+      return;
+    }
+    
     setIsLoading(true);
-   console.log("data",{
-    flightId: flight.id,
-    passengers: passengerForms,
-    cabinClass: cabinClass.toUpperCase(),
-    totalAmount: totalPrice,
-  })
+    
     try {
-      const response = await api.post('/bookings', {
+       await api.post('/bookings', {
         flightId: flight.id,
         passengers: passengerForms,
         cabinClass: cabinClass.toUpperCase(),
         totalAmount: totalPrice,
+        paymentMethodId: selectedPaymentMethodId,
       });
 
-      if (response.status !== 200) {
-        throw new Error('Failed to create booking');
-      }
-
       toast.success('Booking confirmed! Check your email for details.');
-      navigate('/bookings');
+      navigate('/user-bookings');
     } catch (error) {
       console.error('Error creating booking:', error);
       toast.error('Failed to create booking. Please try again.');
@@ -115,6 +158,11 @@ export function Checkout() {
         form.nationality
       );
     }
+    
+    if (currentStep === 2) {
+      return !!selectedPaymentMethodId;
+    }
+    
     return true;
   };
 
@@ -267,60 +315,62 @@ export function Checkout() {
           <div className="space-y-6">
             <div className="flex items-center gap-2 text-lg font-medium text-gray-900">
               <CreditCard className="h-5 w-5" />
-              Payment Details
+              Payment Method
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Card Number
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="4111 1111 1111 1111"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Cardholder Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="John Doe"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Expiry Date
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="MM/YY"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    CVV
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="123"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
+            {isLoadingPaymentMethods ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {paymentMethods.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500">No payment methods found.</p>
+                      <Button onClick={() => navigate('/profile')}>Add Payment Method</Button>
+                    </div>
+                  ) : (
+                    paymentMethods.map((method) => (
+                      <div
+                        key={method.id}
+                        className={`flex items-center justify-between p-4 rounded-lg cursor-pointer border-2 ${
+                          selectedPaymentMethodId === method.id
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                        }`}
+                        onClick={() => setSelectedPaymentMethodId(method.id)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="radio"
+                            checked={selectedPaymentMethodId === method.id}
+                            onChange={() => setSelectedPaymentMethodId(method.id)}
+                            className="h-5 w-5 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center">
+                            <CreditCard className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium">
+                              {method.cardType} •••• {method.lastFourDigits}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Expires {method.expiryMonth}/{method.expiryYear}
+                            </div>
+                            {method.isDefault && (
+                              <span className="mt-1 inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="bg-blue-50 rounded-lg p-4">
               <div className="flex items-center justify-between text-sm">

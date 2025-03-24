@@ -4,6 +4,8 @@ import { ArrowUpDown, Filter, Loader2, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { Modal } from '../components/ui/Modal';
+import { useAuthStore } from '../stores/AuthStore';
 
 interface FlightSearchResultsProps {
   flights: Flight[];
@@ -18,6 +20,7 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
   const [showFilters, setShowFilters] = useState(false);
   const [displayedFlights, setDisplayedFlights] = useState<Flight[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   const [filters, setFilters] = useState({
     minPrice: undefined as number | undefined,
@@ -30,7 +33,7 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
   
   const workerRef = useRef<Worker | null>(null);
   const navigate = useNavigate();
-
+  const {user} = useAuthStore()
   // Initialize worker
   useEffect(() => {
     // Create the worker
@@ -90,6 +93,11 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
   }, [sortBy, displayedFlights.length, selectedCabinClass]);
 
   const handleBook = (flight: Flight) => {
+
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
     navigate('/checkout', { state: { flight } });
     toast.success('Redirecting to booking page...');
   };
@@ -359,6 +367,15 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
           )
         )}
       </div>
+
+      {showLoginModal && (
+        <Modal
+          title="Login Required"
+          description="Please login first to book a flight."
+          onConfirm={() => navigate('/auth/login')}
+          onCancel={() => setShowLoginModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { Checkout } from './pages/Checkout';
 import { ProfilePage } from './pages/Profile';
 import { UpdateBookingPage } from './pages/UpdateBooking';
+import NotFoundPage from './pages/NotFound';
 
 function App() {
   const { initializeAuth } = useAuthStore();
@@ -26,6 +27,7 @@ function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/update-booking" element={<UpdateBookingPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );
