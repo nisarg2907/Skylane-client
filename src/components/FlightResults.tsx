@@ -18,12 +18,10 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
   const [showFilters, setShowFilters] = useState(false);
   const [displayedFlights, setDisplayedFlights] = useState<Flight[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [airlines, setAirlines] = useState<string[]>([]);
   
   const [filters, setFilters] = useState({
     minPrice: undefined as number | undefined,
     maxPrice: undefined as number | undefined,
-    airlines: [] as string[],
     departureTimeRange: undefined as { start: string; end: string } | undefined,
     arrivalTimeRange: undefined as { start: string; end: string } | undefined,
     maxDuration: undefined as number | undefined,
@@ -53,23 +51,6 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
       workerRef.current?.terminate();
     };
   }, []);
-
-  // Extract unique airlines when flights data changes
-  useEffect(() => {
-    if (flights.length > 0) {
-      // Convert airline to string if it's not already a string
-      const uniqueAirlines = Array.from(
-        new Set(
-          flights.map(flight => 
-            typeof flight.airline === 'string' 
-              ? flight.airline 
-              : String(flight.airline)
-          )
-        )
-      );
-      setAirlines(uniqueAirlines);
-    }
-  }, [flights]);
 
   // Update cabin class in filters when it changes in props
   useEffect(() => {
@@ -117,26 +98,10 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
-  const handleAirlineToggle = (airline: string) => {
-    setFilters(prev => {
-      const currentAirlines = [...prev.airlines];
-      const index = currentAirlines.indexOf(airline);
-      
-      if (index > -1) {
-        currentAirlines.splice(index, 1);
-      } else {
-        currentAirlines.push(airline);
-      }
-      
-      return { ...prev, airlines: currentAirlines };
-    });
-  };
-
   const clearFilters = () => {
     setFilters({
       minPrice: undefined,
       maxPrice: undefined,
-      airlines: [],
       departureTimeRange: undefined,
       arrivalTimeRange: undefined,
       maxDuration: undefined,
@@ -360,24 +325,6 @@ export function FlightSearchResults({ flights, isLoading, selectedCabinClass }: 
                   handleFilterChange({ maxDuration: minutes });
                 }}
               />
-            </div>
-            
-            {/* Airlines filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Airlines</label>
-              <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
-                {airlines.map(airline => (
-                  <label key={airline} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={filters.airlines.includes(airline)}
-                      onChange={() => handleAirlineToggle(airline)}
-                      className="rounded"
-                    />
-                    {airline}
-                  </label>
-                ))}
-              </div>
             </div>
           </div>
         </div>
