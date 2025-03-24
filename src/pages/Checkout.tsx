@@ -58,6 +58,7 @@ export function Checkout() {
       }))
   );
 
+  console.log("2 way",outboundFlight,returnFlight)
   // Fetch payment methods when entering payment step
   useEffect(() => {
     if (currentStep === 2) {
@@ -124,7 +125,6 @@ export function Checkout() {
     }
     return price;
   })();
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -132,18 +132,62 @@ export function Checkout() {
       toast.error('Please select a payment method');
       return;
     }
-    
+  
     setIsLoading(true);
     
     try {
-       await api.post('/bookings', {
-        flightId: outboundFlight.id,
-        passengers: passengerForms,
-        cabinClass: cabinClass.toUpperCase(),
+      // Calculate fare amounts (split total price between segments)
+      const fareAmount = totalPrice / (isRoundTrip ? 2 : 1);
+  
+      // Prepare flight segments array
+      const flightSegments = [
+        {
+          flightId: outboundFlight.id,
+          cabinClass: cabinClass.toUpperCase(),
+          fareAmount,
+          isReturn: false
+        }
+      ];
+  
+      if (isRoundTrip && returnFlight) {
+        flightSegments.push({
+          flightId: returnFlight.id,
+          cabinClass: cabinClass.toUpperCase(),
+          fareAmount,
+          isReturn: true
+        });
+      }
+  
+      // Prepare the booking payload according to DTO
+      const bookingPayload = {
+        passengers: passengerForms.map(p => ({
+          firstName: p.firstName,
+          lastName: p.lastName,
+          nationality: p.nationality,
+          type: p.type
+        })),
         totalAmount: totalPrice,
         paymentMethodId: selectedPaymentMethodId,
-      });
-
+        isRoundTrip,
+        flightSegments: [
+          {
+            flightId: outboundFlight.id,
+            cabinClass: cabinClass.toUpperCase(),  
+            fareAmount: totalPrice / (isRoundTrip ? 2 : 1),
+            isReturn: false
+          },
+          ...((isRoundTrip && returnFlight) ? [{
+            flightId: returnFlight.id,
+            cabinClass: cabinClass.toUpperCase(), 
+            fareAmount: totalPrice / 2,
+            isReturn: true
+          }] : [])
+        ]
+      };
+  
+      console.log("Submitting booking:", bookingPayload);
+      
+      await api.post('/bookings', bookingPayload);
       toast.success('Booking confirmed! Check your email for details.');
       navigate('/user-bookings');
     } catch (error) {
@@ -153,7 +197,8 @@ export function Checkout() {
       setIsLoading(false);
     }
   };
-
+  
+ 
   const updatePassenger = (index: number, data: Partial<PassengerFormData>) => {
     setPassengerForms(forms => 
       forms.map((form, i) => i === index ? { ...form, ...data } : form)
