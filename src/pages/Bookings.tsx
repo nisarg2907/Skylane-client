@@ -45,10 +45,13 @@ export function BookingsPage() {
     }
   };
 
-  const handleEmailTicket = async (booking: Booking) => {
-    // TODO: Implement email functionality
-    console.log("booking", booking)
-    toast.success('Ticket sent to your email!');
+  const handleTicketDownload = async (booking: Booking) => {
+    if (booking.ticketUrl) {
+      window.open(booking.ticketUrl, '_blank');
+      toast.success('Ticket downloaded successfully!');
+    } else {
+      toast.error('Ticket URL not available.');
+    }
   };
 
   return (
@@ -110,7 +113,7 @@ export function BookingsPage() {
                 key={booking.id}
                 booking={booking}
                 onCancel={()=>handleCancel(booking.id)}
-                onEmailTicket={handleEmailTicket}
+                onDownloadTicket={handleTicketDownload}
               />
             ))
           )}

@@ -18,6 +18,7 @@ export interface Booking {
   status: 'confirmed' | 'cancelled';
   price: number;
   bookingDate: string;
+  ticketUrl? : string;
 }
 
 interface BookingStore {

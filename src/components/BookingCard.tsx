@@ -1,16 +1,16 @@
 import { Button } from './ui/Button';
 import { Booking } from '../stores/Bookingstore';
 import { formatPrice } from '../lib/utils';
-import { Calendar, Mail, Plane, Users } from 'lucide-react';
+import { Calendar, Download, Plane, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface BookingCardProps {
   booking: Booking;
   onCancel: (id: string) => void;
-  onEmailTicket: (booking: Booking) => void;
+  onDownloadTicket: (booking: Booking) => void;
 }
 
-export function BookingCard({ booking, onCancel, onEmailTicket }: BookingCardProps) {
+export function BookingCard({ booking, onCancel, onDownloadTicket }: BookingCardProps) {
   const totalPassengers = booking.passengers.adult + booking.passengers.child + booking.passengers.infant;
 
   return (
@@ -73,11 +73,11 @@ export function BookingCard({ booking, onCancel, onEmailTicket }: BookingCardPro
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
-              className="flex-1 min-w-[150px]"
-              onClick={() => onEmailTicket(booking)}
+              className="flex-1 min-w-[200px]"
+              onClick={() => onDownloadTicket(booking)}
             >
-              <Mail className="h-4 w-4 mt-0.5 mr-2" />
-              Email Ticket
+              <Download className="h-4 w-4 mt-0.5 mr-2" />
+              Download Ticket
             </Button>
             <Button
               variant="outline"
