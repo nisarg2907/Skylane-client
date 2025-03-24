@@ -5,6 +5,7 @@ import { BookingsPage } from './pages/Bookings';
 import { useAuthStore } from './stores/AuthStore';
 import { useEffect } from 'react';
 import { Checkout } from './pages/Checkout';
+import { ProfilePage } from './pages/Profile';
 
 function App() {
   const { initializeAuth } = useAuthStore();
@@ -22,6 +23,7 @@ function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/user-bookings" element={<BookingsPage />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
     </BrowserRouter>
   );

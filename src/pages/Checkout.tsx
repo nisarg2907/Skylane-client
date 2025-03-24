@@ -124,7 +124,7 @@ export function Checkout() {
      <div className="max-w-5xl mx-auto px-4 py-8">
     <Button
       variant="ghost"
-      className="mb-6"
+      className="mb-6 text-xl"
       onClick={() => navigate(-1)}
     >
       <ArrowLeft className="h-4 w-4 mr-2" />

@@ -1,15 +1,17 @@
 import { BookingCard } from '../components/BookingCard';
 import { type Booking } from "../stores/Bookingstore";
-import { Inbox } from 'lucide-react';
+import { ArrowLeft, Inbox } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Header } from '../components/Header';
 import toast from 'react-hot-toast';
 import api from '../lib/utils';
+import { Button } from '../components/ui/Button';
+import { useNavigate } from 'react-router-dom';
 
 export function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'cancelled'>('all');
-
+  const navigate = useNavigate()
   useEffect(() => {
     const fetchBookings = async () => {
       try {
@@ -59,6 +61,14 @@ export function BookingsPage() {
       <Header />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <Button
+      variant="ghost"
+      className="mb-6 text-xl"
+      onClick={() => navigate(-1)}
+    >
+      <ArrowLeft className="h-4 w-4 mr-2" />
+      Go Back 
+    </Button>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Bookings</h1>
           <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
             <button

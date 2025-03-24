@@ -46,17 +46,24 @@ export const Header = () => {
                       onClick={handleBackdropClick}
                     ></div>
                     <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-lg bg-white py-2 shadow-lg ring-1 ring-black ring-opacity-5 transition-opacity z-20">
-                      <button
-                        onClick={signOut}
+                      
+                    <button
+                        onClick={() => navigate('/profile')}
                         className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                       >
-                        Sign out
+                       My Profile
                       </button>
                       <button
                         onClick={() => navigate('/user-bookings')}
                         className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                       >
                        My Bookings
+                      </button>
+                      <button
+                        onClick={signOut}
+                        className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                      >
+                        Sign out
                       </button>
                     </div>
                   </>
