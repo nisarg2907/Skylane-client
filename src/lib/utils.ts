@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../stores/AuthStore';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
+import { format } from 'date-fns';
 const api = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
 });
@@ -77,4 +77,12 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+export  const formatDate = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? 'Invalid Date' : format(date, 'MMM d, yyyy');
+  } catch  {
+    return 'Invalid Date';
+  }
+};
 export default api;

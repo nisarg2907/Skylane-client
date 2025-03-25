@@ -10,6 +10,8 @@ export interface Booking {
     to: string;
     departureDate: string;
     airline: string;
+    cabinClass?: string;
+    ticketUrl?: string;
   };
   returnFlight?: {
     flightNumber: string;
@@ -17,6 +19,8 @@ export interface Booking {
     to: string;
     departureDate: string;
     airline: string;
+    cabinClass?: string;
+    ticketUrl?: string;
   };
   passengers: {
     adult: number;
