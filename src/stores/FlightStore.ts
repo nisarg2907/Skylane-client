@@ -71,9 +71,7 @@ export const useFlightStore = create<FlightSearchState>()(
       setCabinClass: (cabinClass) => {
         if (['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST'].includes(cabinClass)) {
           set({ cabinClass });
-        } else {
-          console.error('Invalid cabin class');
-        }
+        } 
       },
       setTripType: (tripType) => set({ tripType }),
       addRecentSearch: (search) =>

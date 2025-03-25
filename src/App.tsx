@@ -13,7 +13,6 @@ function App() {
   const { initializeAuth } = useAuthStore();
 
   useEffect(() => {
-    console.log("rerendered")
     initializeAuth();
   }, [initializeAuth]);
 

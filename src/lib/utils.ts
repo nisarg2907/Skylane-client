@@ -12,7 +12,6 @@ api.interceptors.request.use(
   async (config) => {
     // Use the getAccessToken method which automatically refreshes if needed
     const accessToken = await useAuthStore.getState().getAccessToken();
-     console.log("accesstoken",accessToken)
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -56,7 +55,6 @@ api.interceptors.response.use(
         useAuthStore.getState().signOut();
         return Promise.reject(error);
       } catch (refreshError) {
-        console.error('Failed to refresh token:', refreshError);
         useAuthStore.getState().signOut();
         return Promise.reject(refreshError);
       }

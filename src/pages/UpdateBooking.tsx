@@ -78,8 +78,7 @@ export function UpdateBookingPage() {
       });
       toast.success('Booking updated successfully');
       navigate('/user-bookings');
-    } catch (error) {
-      console.error('Error updating booking:', error);
+    } catch  {
       toast.error('Failed to update booking');
     } finally {
       setIsLoading(false);

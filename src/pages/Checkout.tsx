@@ -56,7 +56,6 @@ export function Checkout() {
       }))
   );
 
-  console.log("2 way",outboundFlight,returnFlight)
   // Fetch payment methods when entering payment step
   useEffect(() => {
     if (currentStep === 2) {
@@ -81,8 +80,7 @@ export function Checkout() {
       } else {
         toast.error('No payment methods available');
       }
-    } catch (error) {
-      console.error('Error fetching payment methods:', error);
+    } catch  {
       toast.error('Failed to load payment methods');
     } finally {
       setIsLoadingPaymentMethods(false);
@@ -183,13 +181,11 @@ export function Checkout() {
         ]
       };
   
-      console.log("Submitting booking:", bookingPayload);
       
       await api.post('/bookings', bookingPayload);
       toast.success('Booking confirmed! Check your email for details.');
       navigate('/user-bookings');
-    } catch (error) {
-      console.error('Error creating booking:', error);
+    } catch  {
       toast.error('Failed to create booking. Please try again.');
     } finally {
       setIsLoading(false);

@@ -58,7 +58,6 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
       const request = indexedDB.open(dbName, version);
       
       request.onerror = () => {
-        console.error("Failed to open IndexedDB:", request.error);
         dbPromise = null;
         reject(request.error);
       };
@@ -70,10 +69,6 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
         // Reset the instance if the connection is closed
         dbInstance.onclose = () => {
           dbInstance = null;
-        };
-        
-        dbInstance.onerror = (event) => {
-          console.error("IndexedDB error:", event);
         };
         
         resolve(dbInstance);
@@ -119,13 +114,11 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
           // Set up transaction completion handler
           transaction.oncomplete = () => {
             if (!hasError) {
-              console.log("Successfully cleared all data from IndexedDB");
               resolve();
             }
           };
           
           transaction.onerror = () => {
-            console.error("Error clearing data from IndexedDB:", transaction.error);
             hasError = true;
             reject(transaction.error);
           };
@@ -137,7 +130,6 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
             
             request.onsuccess = () => {
               completedCount++;
-              console.log(`Cleared data from store: ${storeName}`);
               
               // If all stores are processed, resolve the promise
               if (completedCount === storeNames.length && !hasError) {
@@ -146,18 +138,15 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
             };
             
             request.onerror = () => {
-              console.error(`Error clearing store ${storeName}:`, request.error);
               hasError = true;
               reject(request.error);
             };
           });
         } catch (error) {
-          console.error("Error in clearAllData transaction:", error);
           reject(error instanceof Error ? error : new Error(String(error)));
         }
       });
     } catch (error) {
-      console.error("Database connection error in clearAllData:", error);
       throw error instanceof Error ? error : new Error(String(error));
     }
   };
@@ -189,7 +178,6 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
               };
               
               request.onerror = () => {
-                console.error(`Error getting item '${name}' from store '${storeName}':`, request.error);
                 reject(request.error);
               };
               
@@ -198,12 +186,10 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
                 reject(transaction.error);
               };
             } catch (error) {
-              console.error(`Error in getItem for '${name}' in store '${storeName}':`, error);
               reject(error);
             }
           });
-        } catch (error) {
-          console.error(`Database connection error in getItem for '${storeName}':`, error);
+        } catch  {
           return null;
         }
       },
@@ -226,7 +212,6 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
               };
               
               request.onerror = () => {
-                console.error(`Error setting item '${name}' in store '${storeName}':`, request.error);
                 reject(request.error);
               };
               
@@ -235,12 +220,10 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
                 reject(transaction.error);
               };
             } catch (error) {
-              console.error(`Error in setItem for '${name}' in store '${storeName}':`, error);
               reject(error instanceof Error ? error : new Error(String(error)));
             }
           });
         } catch (error) {
-          console.error(`Database connection error in setItem for '${storeName}':`, error);
           throw error instanceof Error ? error : new Error(String(error));
         }
       },
@@ -260,7 +243,6 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
               };
               
               request.onerror = () => {
-                console.error(`Error removing item '${name}' from store '${storeName}':`, request.error);
                 reject(request.error);
               };
               
@@ -269,12 +251,10 @@ const createIndexedDBStorageFactory = (dbName = "flight-booking-app", version = 
                 reject(transaction.error);
               };
             } catch (error) {
-              console.error(`Error in removeItem for '${name}' in store '${storeName}':`, error);
               reject(error instanceof Error ? error : new Error(String(error)));
             }
           });
         } catch (error) {
-          console.error(`Database connection error in removeItem for '${storeName}':`, error);
           throw error instanceof Error ? error : new Error(String(error));
         }
       },

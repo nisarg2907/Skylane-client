@@ -63,8 +63,7 @@ const syncUserWithBackend = async (user: SupabaseUser | null) => {
       }
     );
     return response.data;
-  } catch (err) {
-    console.error('Error syncing user with backend:', err);
+  } catch {
     return null;
   }
 }
@@ -88,7 +87,6 @@ export const useAuthStore = create<AuthState>()(
         const { data: sessionData } = await supabase.auth.getSession();
         
         if (!sessionData.session) {
-          console.log('No active session found when requesting token');
           return null;
         }
         
@@ -99,10 +97,8 @@ export const useAuthStore = create<AuthState>()(
         
         // If token is about to expire, refresh it first
         if (timeUntilExpiry < 5 * 60 * 1000) {
-          console.log(`Token expires in ${Math.round(timeUntilExpiry/60000)} minutes, refreshing now...`);
           const refreshed = await get().refreshSession();
           if (!refreshed) {
-            console.error('Failed to refresh token');
             return null;
           }
         }
@@ -117,15 +113,12 @@ export const useAuthStore = create<AuthState>()(
           // First check if we have a session
           const { data: sessionData } = await supabase.auth.getSession();
           if (!sessionData.session) {
-            console.log('No session to refresh');
             return false;
           }
 
-          console.log('Attempting to refresh session...');
           const { data, error } = await supabase.auth.refreshSession();
           
           if (error) {
-            console.error('Failed to refresh session:', error.message);
             
             // If token refresh fails, clear the user session
             set({ 
@@ -137,7 +130,6 @@ export const useAuthStore = create<AuthState>()(
           }
           
           if (data.session) {
-            console.log('Session refreshed successfully');
             set({
               accessToken: data.session.access_token,
               refreshToken: data.session.refresh_token,
@@ -146,8 +138,7 @@ export const useAuthStore = create<AuthState>()(
           }
           
           return false;
-        } catch (err) {
-          console.error('Error refreshing session:', err);
+        } catch  {
           return false;
         }
       },
@@ -191,7 +182,6 @@ export const useAuthStore = create<AuthState>()(
             throw error;
           }
           
-          console.log('Sign in successful, session data:', data.session);
           
           if (data.session) {
             set({
@@ -240,7 +230,6 @@ export const useAuthStore = create<AuthState>()(
       },   
       
       initializeAuth: () => {
-        console.log('Initializing auth...');
         set({ loading: true });
         
         // Handle session setup
@@ -249,13 +238,11 @@ export const useAuthStore = create<AuthState>()(
             const { data, error } = await supabase.auth.getSession();
             
             if (error) {
-              console.error('Error fetching session:', error.message);
               set({ loading: false });
               return;
             }
             
             if (data.session) {
-              console.log('Active session found:', data.session.user?.email);
               
               // Store tokens
               set({
@@ -278,15 +265,12 @@ export const useAuthStore = create<AuthState>()(
               const timeUntilExpiry = expiresAt - now;
               
               if (timeUntilExpiry > 0 && timeUntilExpiry < 10 * 60 * 1000) {
-                console.log('Token expires soon, refreshing now...');
                 await get().refreshSession();
               }
             } else {
-              console.log('No active session found');
               set({ loading: false });
             }
-          } catch (err) {
-            console.error('Error during auth initialization:', err);
+          } catch  {
             set({ loading: false });
           }
         };
@@ -297,7 +281,6 @@ export const useAuthStore = create<AuthState>()(
         const refreshToken = urlParams.get('refresh_token');
         
         if (accessToken && refreshToken) {
-          console.log('Tokens found in URL, setting session...');
           supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -305,8 +288,7 @@ export const useAuthStore = create<AuthState>()(
             setupSession();
             // Clean URL
             window.history.replaceState({}, document.title, window.location.pathname);
-          }).catch((err) => {
-            console.error('Error setting session from URL:', err);
+          }).catch(() => {
             set({ loading: false });
           });
         } else {
@@ -321,7 +303,6 @@ export const useAuthStore = create<AuthState>()(
             
             const { data } = await supabase.auth.getSession();
             if (!data.session) {
-              console.log('No session found during refresh check');
               return;
             }
             
@@ -331,20 +312,16 @@ export const useAuthStore = create<AuthState>()(
             
             // Refresh if less than 10 minutes until expiry
             if (timeUntilExpiry < 10 * 60 * 1000) {
-              console.log(`Token expires in ${Math.round(timeUntilExpiry/60000)} minutes, refreshing now...`);
               await get().refreshSession();
-            } else {
-              console.log(`Token valid for ${Math.round(timeUntilExpiry/60000)} more minutes`);
-            }
-          } catch (err) {
-            console.error('Error in token refresh check:', err);
+            } 
+          } catch {
+            console.error('Error in token refresh check:');
           }
         };
         
         // Set up auth state change listener
         const authListener = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log('Auth state changed:', event, session?.user?.email || 'no user');
-          
+  
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             if (session) {
               set({
@@ -400,8 +377,8 @@ export const useAuthStore = create<AuthState>()(
           if (error) {
             console.error('Error updating user metadata in Supabase:', error);
           }
-        } catch (err) {
-          console.error('Error updating user in store:', err);
+        } catch  {
+          console.error('Error updating user in store:');
         }
       },
     }),

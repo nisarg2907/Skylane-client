@@ -57,17 +57,7 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
 
         try {
             setIsLoading(true);
-            setError(null);
-            console.log('Fetching flight data with params:', {
-                from,
-                to,
-                departureDate,
-                returnDate: returnDate || '',
-                cabinClass,
-                tripType,
-                passengers:passengersArray
-            });
-           
+            setError(null);      
             const response = await api.get(`/flights/${tripType}`, {
                 params: {
                     from,
@@ -84,10 +74,8 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
             onSearch(data); 
         } catch (error: unknown) {
             if (error instanceof Error) {
-                console.error('Error fetching flight data:', error.message);
                 setError(error.message);
             } else {
-                console.error('An unknown error occurred');
                 setError('An unknown error occurred');
             }
         } finally {

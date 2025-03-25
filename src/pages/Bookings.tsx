@@ -47,8 +47,11 @@ export function BookingsPage() {
       const response = await api.get('/bookings');
       setBookings(response.data);
     } catch (error) {
-      console.error('Failed to fetch bookings:', error);
-      toast.error('Failed to fetch bookings');
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to fetch bookings');
+      }
     } finally {
       setLoading(false);
     }
@@ -78,8 +81,7 @@ export function BookingsPage() {
           setBookings((prevBookings) => prevBookings.filter((booking) => booking.id !== bookingToCancel));
           toast.success('Booking cancelled successfully');
         })
-        .catch((error) => {
-          console.error('Failed to cancel booking:', error);
+        .catch(() => {
           toast.error('Failed to cancel booking');
         }).finally(() => {
           fetchBookings();
