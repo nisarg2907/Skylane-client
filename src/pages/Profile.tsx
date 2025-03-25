@@ -1,12 +1,11 @@
 import { Button } from '../components/ui/Button';
-import { ArrowLeft, CreditCard, Key, Loader2, Mail, User } from 'lucide-react';
+import { ArrowLeft, CreditCard, Loader2, Mail, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Header } from '../components/Header';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/AuthStore';
 import api from '../lib/utils';
-import { supabase } from '../lib/supabase';
 import { Modal } from '../components/ui/Modal';
 
 interface PaymentMethod {
@@ -528,52 +527,6 @@ export function ProfilePage() {
                                     )}
                                 </div>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Security Section */}
-                    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-200">
-                            <div className="flex items-center gap-2">
-                                <Key className="h-5 w-5 text-gray-400" />
-                                <h2 className="text-xl font-semibold text-gray-900">Security</h2>
-                            </div>
-                        </div>
-
-                        <div className="p-6">
-                            <Button
-                                variant="outline"
-                                onClick={async () => {
-                                    try {
-                                        setIsLoading(true);
-                                        const { error } = await supabase.auth.resetPasswordForEmail(
-                                            user?.email || '',
-                                            {
-                                                redirectTo: `${window.location.origin}/reset-password`,
-                                            }
-                                        );
-
-                                        if (error) {
-                                            throw error;
-                                        }
-
-                                        toast.success('Password reset email sent. Please check your inbox.');
-                                    } catch (error) {
-                                        console.error('Error sending password reset:', error);
-                                        toast.error('Failed to send password reset email');
-                                    } finally {
-                                        setIsLoading(false);
-                                    }
-                                }}
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : (
-                                    <Key className="h-4 w-4 mr-2" />
-                                )}
-                                Reset Password
-                            </Button>
                         </div>
                     </div>
                 </div>

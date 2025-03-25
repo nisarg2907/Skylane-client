@@ -19,6 +19,7 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
         returnDate,
         cabinClass,
         tripType,
+        passengers,
         setFrom,
         setTo,
         setDepartureDate,
@@ -49,6 +50,10 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
             to,
             date: departureDate,
         });
+        const passengersArray = {
+            adult: passengers.adult,
+            child: passengers.child,
+        };
 
         try {
             setIsLoading(true);
@@ -60,22 +65,23 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
                 returnDate: returnDate || '',
                 cabinClass,
                 tripType,
+                passengers:passengersArray
             });
-            // Make the API call to fetch flight data
+           
             const response = await api.get(`/flights/${tripType}`, {
                 params: {
                     from,
                     to,
                     departureDate,
-                    returnDate: returnDate || null, // Optional return date for round-trip
+                    returnDate: returnDate || null, 
                     cabinClass:cabinClass.toUpperCase(),
                     tripType,
+                    passengers:passengersArray
                 },
             });
     
             const data = response.data;
-            console.log('Flight data received:', data);
-            onSearch(data);  // Pass the data to the parent component
+            onSearch(data); 
         } catch (error: unknown) {
             if (error instanceof Error) {
                 console.error('Error fetching flight data:', error.message);

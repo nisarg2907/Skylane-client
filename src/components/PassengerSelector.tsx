@@ -14,6 +14,12 @@ export function PassengerSelector() {
 
     if (newValue >= 0 && newValue <= 9) {
       if (totalPassengers < 9 || !increment) {
+        if (type === 'adult' && newValue === 0 && passengers.child === 0) {
+          return;
+        }
+        if (type === 'child' && newValue === 0 && passengers.adult === 0) {
+          return;
+        }
         setPassengers(type, newValue);
       }
     }
@@ -48,7 +54,7 @@ export function PassengerSelector() {
                   variant="outline"
                   size="sm"
                   onClick={() => updatePassenger('adult', false)}
-                  disabled={passengers.adult <= 1}
+                  disabled={passengers.adult <= 1 && passengers.child === 0}
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
@@ -77,7 +83,7 @@ export function PassengerSelector() {
                   variant="outline"
                   size="sm"
                   onClick={() => updatePassenger('child', false)}
-                  disabled={passengers.child <= 0}
+                  disabled={passengers.child <= 0 && passengers.adult === 0}
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
