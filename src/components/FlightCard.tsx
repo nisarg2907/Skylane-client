@@ -3,7 +3,7 @@ import { Flight } from '../types/flight';
 import { formatPrice } from '../lib/utils';
 import { Clock, Plane } from 'lucide-react';
 import { format, formatDistanceStrict, parseISO } from 'date-fns';
-
+import { useSeatUpdates } from '../hooks/useSeatUpdates';
 interface FlightCardProps {
   flight: Flight;
   selectedCabinClass: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
@@ -22,7 +22,25 @@ export function FlightCard({
   const departureTime = parseISO(flight.departureTime);
   const arrivalTime = parseISO(flight.arrivalTime);
   const duration = formatDistanceStrict(arrivalTime, departureTime);
-
+  const { currentSeats } = useSeatUpdates(flight.id);
+  console.log("flight",flight,selectedCabinClass)
+   const getAvailableSeats = () => {
+    // Use real-time seat data if available, otherwise fall back to initial data
+    if (currentSeats !== undefined) return currentSeats;
+    
+    switch (selectedCabinClass) {
+      case 'ECONOMY':
+        return flight.economyCapacity;
+      case 'PREMIUM_ECONOMY':
+        return flight.premiumEconomyCapacity;
+      case 'BUSINESS':
+        return flight.businessCapacity;
+      case 'FIRST':
+        return flight.firstClassCapacity;
+      default:
+        return flight.economyCapacity;
+    }
+  };
   const getPrice = () => {
     switch (selectedCabinClass) {
       case 'ECONOMY':
@@ -38,20 +56,7 @@ export function FlightCard({
     }
   };
 
-  const getAvailableSeats = () => {
-    switch (selectedCabinClass) {
-      case 'ECONOMY':
-        return flight.economyCapacity;
-      case 'PREMIUM_ECONOMY':
-        return flight.premiumEconomyCapacity;
-      case 'BUSINESS':
-        return flight.businessCapacity;
-      case 'FIRST':
-        return flight.firstClassCapacity;
-      default:
-        return flight.economyCapacity;
-    }
-  };
+
 
   const price = getPrice();
   const availableSeats = getAvailableSeats();

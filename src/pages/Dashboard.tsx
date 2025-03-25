@@ -12,7 +12,7 @@ const Dashboard = () => {
     const [hasSearched, setHasSearched] = useState(false);
     const [flights, setFlights] = useState<SearchResults>({outboundFlights:[], returnFlights:[]});  
     const [selectedOutboundFlight, setSelectedOutboundFlight] = useState<Flight | null>(null);
-    const { recentSearches, tripType } = useFlightStore();
+    const { recentSearches, tripType , cabinClass} = useFlightStore();
 
     const handleSearch = async (flightData: SearchResults) => {
         setIsSearching(true);
@@ -34,7 +34,7 @@ const Dashboard = () => {
                 <FlightSearchResults 
                     flights={flights} 
                     isLoading={isSearching} 
-                    selectedCabinClass="ECONOMY" 
+                    selectedCabinClass={cabinClass} 
                 />
             );
         }
@@ -50,7 +50,7 @@ const Dashboard = () => {
                         <FlightSearchResults 
                             flights={flights} 
                             isLoading={isSearching} 
-                            selectedCabinClass="ECONOMY" 
+                            selectedCabinClass={cabinClass} 
                             mode="outbound"
                             onFlightSelect={handleOutboundFlightSelect}
                         />

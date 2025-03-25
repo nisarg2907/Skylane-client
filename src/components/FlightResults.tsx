@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from '../components/ui/Modal';
 import { useAuthStore } from '../stores/AuthStore';
 import toast from 'react-hot-toast';
+import { SseConnectionStatus } from './SseConnectionStatus';
 
 interface FlightSearchResultsProps {
   flights: SearchResults;
@@ -31,7 +32,7 @@ export function FlightSearchResults({
   const [displayedFlights, setDisplayedFlights] = useState<SearchResults>(flights);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  
+  console.log("In selected cabin class results", selectedCabinClass)
   const [filters, setFilters] = useState({
     minPrice: undefined as number | undefined,
     maxPrice: undefined as number | undefined,
@@ -129,6 +130,7 @@ export function FlightSearchResults({
 
   return (
     <div className="space-y-6">
+      <SseConnectionStatus/>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="text-sm text-gray-500">
           {isProcessing ? (

@@ -75,9 +75,20 @@ export const useFlightStore = create<FlightSearchState>()(
       },
       setTripType: (tripType) => set({ tripType }),
       addRecentSearch: (search) =>
-        set((state) => ({
-          recentSearches: [search, ...state.recentSearches.slice(0, 2)],
-        })),
+        set((state) => {
+          const isDifferent = state.recentSearches.every(
+            (recentSearch) =>
+              recentSearch.from !== search.from ||
+              recentSearch.to !== search.to ||
+              recentSearch.date !== search.date
+          );
+          if (isDifferent) {
+            return {
+              recentSearches: [search, ...state.recentSearches.slice(0, 2)],
+            };
+          }
+          return state;
+        }),
       swapLocations: () =>
         set((state) => ({
           from: state.to,
