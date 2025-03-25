@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/AuthStore';
 import api from '../lib/utils';
 import { supabase } from '../lib/supabase';
+import { Modal } from '../components/ui/Modal';
 
 interface PaymentMethod {
     id: string;
@@ -28,6 +29,10 @@ export function ProfilePage() {
         lastName: user?.lastName || '',
         email: user?.email || '',
     });
+    
+    // State for managing remove payment method modal
+    const [showRemoveModal, setShowRemoveModal] = useState(false);
+    const [paymentMethodToRemove, setPaymentMethodToRemove] = useState<string | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -50,7 +55,7 @@ export function ProfilePage() {
     });
 
     const navigate = useNavigate();
-
+   
     // Fetch payment methods on component mount
     useEffect(() => {
         fetchPaymentMethods();
@@ -68,9 +73,7 @@ export function ProfilePage() {
                 return;
             }
 
-            const response = await api.get('/users/payment-methods', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get('/users/payment-methods');
             setPaymentMethods(response.data);
         } catch (error) {
             console.error('Error fetching payment methods:', error);
@@ -114,33 +117,66 @@ export function ProfilePage() {
         }
     };
 
+    // Function to validate card inputs
+    const validateCardInputs = () => {
+        // Card Number: Only numbers, remove spaces
+        const cleanedCardNumber = newCardInfo.cardNumber.replace(/\s/g, '');
+        if (!/^\d{13,19}$/.test(cleanedCardNumber)) {
+            toast.error('Invalid card number. Must be 13-19 digits.');
+            return false;
+        }
+
+        // Cardholder Name: Only letters, spaces, and hyphens
+        if (!/^[A-Za-z\s-]+$/.test(newCardInfo.cardHolderName)) {
+            toast.error('Invalid cardholder name. Use only letters, spaces, and hyphens.');
+            return false;
+        }
+
+        // Expiry Month: Two-digit number between 01-12
+        if (!/^(0[1-9]|1[0-2])$/.test(newCardInfo.expiryMonth)) {
+            toast.error('Invalid month. Use MM format (01-12).');
+            return false;
+        }
+
+        // Expiry Year: Two-digit number, should be current or future year
+        const currentYear = new Date().getFullYear() % 100;
+        const inputYear = parseInt(newCardInfo.expiryYear, 10);
+        if (!/^\d{2}$/.test(newCardInfo.expiryYear) || inputYear < currentYear) {
+            toast.error('Invalid year. Use YY format and must be current or future year.');
+            return false;
+        }
+
+        // CVV: Exactly 3 digits
+        if (!/^\d{3}$/.test(newCardInfo.cvv)) {
+            toast.error('Invalid CVV. Must be 3 digits.');
+            return false;
+        }
+
+        return true;
+    };
+
     // Function to add payment method
     const handleAddPaymentMethod = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Validate inputs first
+        if (!validateCardInputs()) {
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            const token = await getAccessToken();
-
-            if (!token) {
-                toast.error('Authentication error. Please login again.');
-                return;
-            }
-
-            // Call API to create payment method
             await api.post(
                 '/users/payment-methods',
                 {
-                    cardNumber: newCardInfo.cardNumber,
-                    cardHolderName: newCardInfo.cardHolderName,
+                    cardNumber: newCardInfo.cardNumber.replace(/\s/g, ''), // Remove spaces
+                    cardHolderName: newCardInfo.cardHolderName.trim(),
                     expiryMonth: newCardInfo.expiryMonth,
                     expiryYear: newCardInfo.expiryYear,
                     cvv: newCardInfo.cvv,
                     cardType: newCardInfo.cardType,
                     isDefault: paymentMethods.length === 0
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` }
                 }
             );
 
@@ -165,26 +201,19 @@ export function ProfilePage() {
         }
     };
 
-    // Function to remove payment method
-    const handleRemovePaymentMethod = async (id: string) => {
-        if (!window.confirm('Are you sure you want to remove this payment method?')) {
-            return;
-        }
+    // Updated function to remove payment method with modal
+    const handleRemovePaymentMethod = async () => {
+        if (!paymentMethodToRemove) return;
 
         try {
-            const token = await getAccessToken();
-
-            if (!token) {
-                toast.error('Authentication error. Please login again.');
-                return;
-            }
-
-            await api.delete(`/users/payment-methods/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.delete(`/users/payment-methods/${paymentMethodToRemove}`);
 
             toast.success('Payment method removed successfully');
             await fetchPaymentMethods();
+            
+            // Close the modal after successful removal
+            setShowRemoveModal(false);
+            setPaymentMethodToRemove(null);
         } catch (error) {
             console.error('Error removing payment method:', error);
             toast.error('Failed to remove payment method');
@@ -194,16 +223,7 @@ export function ProfilePage() {
     // Function to set default payment method
     const handleSetDefaultPaymentMethod = async (id: string) => {
         try {
-            const token = await getAccessToken();
-
-            if (!token) {
-                toast.error('Authentication error. Please login again.');
-                return;
-            }
-
-            await api.post(`/users/payment-methods/${id}/default`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post(`/users/payment-methods/${id}/default`,{});
 
             toast.success('Default payment method updated');
             await fetchPaymentMethods();
@@ -213,9 +233,9 @@ export function ProfilePage() {
         }
     };
 
-    // JSX remains mostly the same but we'll update the forms
     return (
-        <><Header />
+        <>
+            <Header />
             <div className="w-full max-w-7xl mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-6 ">
                     <Button
@@ -339,7 +359,11 @@ export function ProfilePage() {
                                                 type="text"
                                                 placeholder="4111 1111 1111 1111"
                                                 value={newCardInfo.cardNumber}
-                                                onChange={(e) => setNewCardInfo({ ...newCardInfo, cardNumber: e.target.value })}
+                                                onChange={(e) => {
+                                                    // Allow only digits and spaces
+                                                    const value = e.target.value.replace(/[^\d\s]/g, '');
+                                                    setNewCardInfo({ ...newCardInfo, cardNumber: value });
+                                                }}
                                                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                 required
                                             />
@@ -353,7 +377,11 @@ export function ProfilePage() {
                                                 type="text"
                                                 placeholder="John Doe"
                                                 value={newCardInfo.cardHolderName}
-                                                onChange={(e) => setNewCardInfo({ ...newCardInfo, cardHolderName: e.target.value })}
+                                                onChange={(e) => {
+                                                    // Allow only letters, spaces, and hyphens
+                                                    const value = e.target.value.replace(/[^A-Za-z\s-]/g, '');
+                                                    setNewCardInfo({ ...newCardInfo, cardHolderName: value });
+                                                }}
                                                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                 required
                                             />
@@ -367,7 +395,11 @@ export function ProfilePage() {
                                                 type="text"
                                                 placeholder="MM"
                                                 value={newCardInfo.expiryMonth}
-                                                onChange={(e) => setNewCardInfo({ ...newCardInfo, expiryMonth: e.target.value })}
+                                                onChange={(e) => {
+                                                    // Allow only digits, max 2 characters
+                                                    const value = e.target.value.replace(/\D/g, '').slice(0, 2);
+                                                    setNewCardInfo({ ...newCardInfo, expiryMonth: value });
+                                                }}
                                                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                 required
                                             />
@@ -381,7 +413,11 @@ export function ProfilePage() {
                                                 type="text"
                                                 placeholder="YY"
                                                 value={newCardInfo.expiryYear}
-                                                onChange={(e) => setNewCardInfo({ ...newCardInfo, expiryYear: e.target.value })}
+                                                onChange={(e) => {
+                                                    // Allow only digits, max 2 characters
+                                                    const value = e.target.value.replace(/\D/g, '').slice(0, 2);
+                                                    setNewCardInfo({ ...newCardInfo, expiryYear: value });
+                                                }}
                                                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                 required
                                             />
@@ -395,7 +431,11 @@ export function ProfilePage() {
                                                 type="text"
                                                 placeholder="123"
                                                 value={newCardInfo.cvv}
-                                                onChange={(e) => setNewCardInfo({ ...newCardInfo, cvv: e.target.value })}
+                                                onChange={(e) => {
+                                                    // Allow only digits, max 3 characters
+                                                    const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+                                                    setNewCardInfo({ ...newCardInfo, cvv: value });
+                                                }}
                                                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                 required
                                             />
@@ -475,7 +515,10 @@ export function ProfilePage() {
                                                         variant="outline"
                                                         size="sm"
                                                         className="text-red-600 hover:bg-red-50 hover:border-red-600"
-                                                        onClick={() => handleRemovePaymentMethod(method.id)}
+                                                        onClick={() => {
+                                                            setPaymentMethodToRemove(method.id);
+                                                            setShowRemoveModal(true);
+                                                        }}
                                                     >
                                                         Remove
                                                     </Button>
@@ -535,6 +578,21 @@ export function ProfilePage() {
                     </div>
                 </div>
             </div>
+
+            {/* Add Modal for Removing Payment Method */}
+            {showRemoveModal && (
+                <Modal 
+                    title="Remove Payment Method" 
+                    description="Are you sure you want to remove this payment method?" 
+                    onConfirm={handleRemovePaymentMethod}
+                    onCancel={() => {
+                        setShowRemoveModal(false);
+                        setPaymentMethodToRemove(null);
+                    }}
+                    confirmLabel="Remove"
+                    cancelLabel="Cancel"
+                />
+            )}
         </>
     );
 }

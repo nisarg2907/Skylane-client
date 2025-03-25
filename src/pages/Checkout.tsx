@@ -24,7 +24,7 @@ interface PassengerFormData {
   firstName: string;
   lastName: string;
   nationality: string;
-  type: 'ADULT' | 'CHILD' | 'INFANT';
+  type: 'ADULT' | 'CHILD';
 }
 
 interface CheckoutLocationState {
@@ -44,7 +44,7 @@ export function Checkout() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [passengerForms, setPassengerForms] = useState<PassengerFormData[]>(
-    Array(passengers.adult + passengers.child + passengers.infant)
+    Array(passengers.adult + passengers.child)
       .fill(null)
       .map((_, index) => ({
         firstName: '',
@@ -52,9 +52,7 @@ export function Checkout() {
         nationality: '',
         type: index < passengers.adult 
           ? 'ADULT' 
-          : index < passengers.adult + passengers.child 
-            ? 'CHILD' 
-            : 'INFANT'
+          : 'CHILD'
       }))
   );
 

@@ -6,14 +6,13 @@ import { useState } from 'react';
 export function PassengerSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const { passengers, setPassengers } = useFlightStore();
-  const totalPassengers = passengers.adult + passengers.child + passengers.infant;
+  const totalPassengers = passengers.adult + passengers.child;
 
-  const updatePassenger = (type: 'adult' | 'child' | 'infant', increment: boolean) => {
+  const updatePassenger = (type: 'adult' | 'child', increment: boolean) => {
     const current = passengers[type];
     const newValue = increment ? current + 1 : current - 1;
 
     if (newValue >= 0 && newValue <= 9) {
-      if (type === 'infant' && newValue > passengers.adult) return; // Infants cannot exceed adults
       if (totalPassengers < 9 || !increment) {
         setPassengers(type, newValue);
       }
@@ -89,35 +88,6 @@ export function PassengerSelector() {
                   size="sm"
                   onClick={() => updatePassenger('child', true)}
                   disabled={totalPassengers >= 9}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Infants */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-900">Infants</p>
-                <p className="text-sm text-gray-500">Under 2</p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => updatePassenger('infant', false)}
-                  disabled={passengers.infant <= 0}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="w-8 text-center">{passengers.infant}</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => updatePassenger('infant', true)}
-                  disabled={passengers.infant >= passengers.adult || totalPassengers >= 9}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
